@@ -5,6 +5,13 @@ document.addEventListener('alpine:init', () => {
         language: 'en',
         direction: 'ltr',
         orderType: 'dine-in',
+        
+        // POS State Variables
+        posSearchTerm: '',
+        posFilterCategory: 'all',
+        posSortBy: 'name',
+        posQuickFilter: 'all',
+        posActiveCategory: 'all',
         showRecipeForm: false,
         editingRecipe: null,
         selectedRecipe: null,
@@ -105,7 +112,7 @@ document.addEventListener('alpine:init', () => {
         },
         
         // Recipe Management with enhanced features
-        recipeCategories: ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Pizza', 'Salad', 'Soup', 'Pasta', 'Seafood', 'Meat', 'Vegetarian'],
+        recipeCategories: ['Pizza', 'Salad', 'Burgers', 'Appetizers', 'Pasta', 'Seafood', 'Mexican', 'Desserts', 'Sides', 'Soups', 'Beverages'],
         showRecipeCategories: false,
         recipeSearchTerm: '',
         recipeFilterCategory: 'all',
@@ -946,6 +953,36 @@ document.addEventListener('alpine:init', () => {
         removeItem(index) {
             this.currentOrder.items.splice(index, 1);
             this.calculateOrderTotals();
+        },
+        
+        clearCurrentOrder() {
+            if (confirm('Are you sure you want to clear the current order?')) {
+                this.currentOrder = {
+                    items: [],
+                    subtotal: 0,
+                    tax: 0,
+                    total: 0,
+                    tableNumber: null,
+                    deliveryFee: 0
+                };
+            }
+        },
+        
+        saveOrderAsDraft() {
+            const draft = {
+                ...this.currentOrder,
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                status: 'draft',
+                type: this.orderType
+            };
+            
+            // Save to localStorage
+            const drafts = JSON.parse(localStorage.getItem('restaurant_order_drafts') || '[]');
+            drafts.push(draft);
+            localStorage.setItem('restaurant_order_drafts', JSON.stringify(drafts));
+            
+            alert('Order saved as draft successfully!');
         },
         
         calculateOrderTotals() {
@@ -1882,29 +1919,71 @@ document.addEventListener('alpine:init', () => {
         getFilteredRecipes() {
             let filteredRecipes = this.recipes.filter(recipe => recipe.isActive !== false);
             
+            // Determine which search term to use based on current tab
+            const searchTerm = this.currentTab === 'pos' ? this.posSearchTerm : this.recipeSearchTerm;
+            const filterCategory = this.currentTab === 'pos' ? this.posFilterCategory : this.recipeFilterCategory;
+            const sortBy = this.currentTab === 'pos' ? this.posSortBy : this.recipeSortBy;
+            const activeCategory = this.currentTab === 'pos' ? this.posActiveCategory : 'all';
+            const quickFilter = this.currentTab === 'pos' ? this.posQuickFilter : 'all';
+            
             // Apply search filter
-            if (this.recipeSearchTerm) {
-                const searchTerm = this.recipeSearchTerm.toLowerCase();
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
                 filteredRecipes = filteredRecipes.filter(recipe => 
-                    recipe.name.toLowerCase().includes(searchTerm) ||
-                    recipe.category.toLowerCase().includes(searchTerm) ||
-                    recipe.tags.some(tag => tag.toLowerCase().includes(searchTerm)) ||
-                    recipe.ingredients.some(ing => ing.name.toLowerCase().includes(searchTerm))
+                    recipe.name.toLowerCase().includes(searchLower) ||
+                    recipe.category.toLowerCase().includes(searchLower) ||
+                    (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(searchLower))) ||
+                    (recipe.ingredients && recipe.ingredients.some(ing => ing.name.toLowerCase().includes(searchLower)))
                 );
             }
             
             // Apply category filter
-            if (this.recipeFilterCategory !== 'all') {
+            if (filterCategory !== 'all') {
                 filteredRecipes = filteredRecipes.filter(recipe => 
-                    recipe.category === this.recipeFilterCategory
+                    recipe.category === filterCategory
                 );
+            }
+            
+            // Apply active category filter (for POS tabs)
+            if (activeCategory !== 'all') {
+                filteredRecipes = filteredRecipes.filter(recipe => 
+                    recipe.category === activeCategory
+                );
+            }
+            
+            // Apply quick filters (POS only)
+            if (this.currentTab === 'pos' && quickFilter !== 'all') {
+                switch (quickFilter) {
+                    case 'popular':
+                        // Filter by popular tags or high-priced items
+                        filteredRecipes = filteredRecipes.filter(recipe => 
+                            (recipe.tags && recipe.tags.includes('popular')) ||
+                            recipe.price > 15
+                        );
+                        break;
+                    case 'vegetarian':
+                        filteredRecipes = filteredRecipes.filter(recipe => 
+                            recipe.tags && recipe.tags.includes('vegetarian')
+                        );
+                        break;
+                    case 'spicy':
+                        filteredRecipes = filteredRecipes.filter(recipe => 
+                            recipe.tags && recipe.tags.includes('spicy')
+                        );
+                        break;
+                    case 'healthy':
+                        filteredRecipes = filteredRecipes.filter(recipe => 
+                            recipe.tags && recipe.tags.includes('healthy')
+                        );
+                        break;
+                }
             }
             
             // Apply sorting
             filteredRecipes.sort((a, b) => {
                 let aValue, bValue;
                 
-                switch(this.recipeSortBy) {
+                switch(sortBy) {
                     case 'name':
                         aValue = a.name.toLowerCase();
                         bValue = b.name.toLowerCase();
@@ -1912,6 +1991,15 @@ document.addEventListener('alpine:init', () => {
                     case 'price':
                         aValue = a.price;
                         bValue = b.price;
+                        break;
+                    case 'popularity':
+                        // Sort by tags containing 'popular' or by price
+                        aValue = (a.tags && a.tags.includes('popular')) ? 1 : 0;
+                        bValue = (b.tags && b.tags.includes('popular')) ? 1 : 0;
+                        if (aValue === bValue) {
+                            aValue = a.price;
+                            bValue = b.price;
+                        }
                         break;
                     case 'category':
                         aValue = a.category.toLowerCase();
@@ -1926,7 +2014,8 @@ document.addEventListener('alpine:init', () => {
                         bValue = b.name.toLowerCase();
                 }
                 
-                if (this.recipeSortOrder === 'desc') {
+                const sortOrder = this.currentTab === 'pos' ? 'asc' : this.recipeSortOrder;
+                if (sortOrder === 'desc') {
                     return aValue < bValue ? 1 : -1;
                 } else {
                     return aValue > bValue ? 1 : -1;
