@@ -256,6 +256,12 @@ document.addEventListener('alpine:init', () => {
             kdsAddStation: 'Add Station',
             kdsName: 'Name',
             
+            // Prep Time Status Translations
+            overdue: 'Overdue',
+            late: 'Late',
+            early: 'Early',
+            'on-time': 'On Time',
+            
             // Recipes
             recipes: 'Recipes',
             recipeList: 'Recipe List',
@@ -508,7 +514,13 @@ document.addEventListener('alpine:init', () => {
             receiptFooter: 'تذييل الإيصال',
             autoPrint: 'الطباعة التلقائية',
             receiptWidth: 'عرض الإيصال (مم)',
-            fontSize: 'حجم الخط (نقطة)'
+            fontSize: 'حجم الخط (نقطة)',
+            
+            // Prep Time Status Translations
+            overdue: 'متأخر',
+            late: 'متأخر',
+            early: 'مبكر',
+            'on-time': 'في الوقت المحدد'
         },
         
         // Initialize app
