@@ -27,6 +27,28 @@ document.addEventListener('alpine:init', () => {
         kdsPriorityOrders: [],
         kdsUrgentOrders: [],
         kdsRefreshTimer: null,
+        kdsStationFilter: 'all',
+        
+        // Chef/Station Management
+        chefs: [
+            { name: 'Chef Anna' },
+            { name: 'Chef Ben' },
+            { name: 'Chef Carlos' }
+        ],
+        stations: [
+            { name: 'Grill' },
+            { name: 'Fry' },
+            { name: 'Salad' },
+            { name: 'Dessert' }
+        ],
+        showChefAssignModal: false,
+        chefAssignOrderId: null,
+        chefAssignName: '',
+        chefAssignStation: '',
+        showChefStationManager: false,
+        chefStationTab: 'chefs',
+        newChefName: '',
+        newStationName: '',
         
         // Sample data
         currentOrder: {
@@ -316,7 +338,19 @@ document.addEventListener('alpine:init', () => {
             receiptFooter: 'Receipt Footer',
             autoPrint: 'Auto Print',
             receiptWidth: 'Receipt Width (mm)',
-            fontSize: 'Font Size (pt)'
+            fontSize: 'Font Size (pt)',
+            kdsAssignChef: 'Assign Chef',
+            kdsUnassignChef: 'Unassign',
+            kdsAssignedTo: 'Assigned to',
+            kdsStation: 'Station',
+            kdsSelectChef: 'Select Chef',
+            kdsSelectStation: 'Select Station',
+            kdsSave: 'Save',
+            kdsManageChefs: 'Manage Chefs',
+            kdsManageStations: 'Manage Stations',
+            kdsAddChef: 'Add Chef',
+            kdsAddStation: 'Add Station',
+            kdsName: 'Name',
         },
         
         // Arabic translations
@@ -514,6 +548,8 @@ document.addEventListener('alpine:init', () => {
                     this.tables = JSON.parse(e.newValue || '[]');
                 }
             });
+            
+            this.initRealtimeSync();
         },
         
         // Load recipes from localStorage
@@ -893,6 +929,11 @@ document.addEventListener('alpine:init', () => {
             // Apply view filter
             if (this.kdsView !== 'all') {
                 filteredOrders = filteredOrders.filter(order => order.status === this.kdsView);
+            }
+            
+            // Station filter
+            if (this.kdsStationFilter && this.kdsStationFilter !== 'all') {
+                filteredOrders = filteredOrders.filter(order => order.assignedStation === this.kdsStationFilter);
             }
             
             // Apply sorting
@@ -1615,6 +1656,66 @@ document.addEventListener('alpine:init', () => {
             link.click();
             
             URL.revokeObjectURL(url);
+        },
+        
+        assignOrderToChefStation(orderId, chefName, stationName) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                order.assignedChef = chefName;
+                order.assignedStation = stationName;
+                order.assignedTime = Date.now();
+                this.saveOrders();
+                this.showChefAssignModal = false;
+                this.chefAssignOrderId = null;
+                this.chefAssignName = '';
+                this.chefAssignStation = '';
+            }
+        },
+        unassignOrderChefStation(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                delete order.assignedChef;
+                delete order.assignedStation;
+                delete order.assignedTime;
+                this.saveOrders();
+            }
+        },
+        // Real-time sync for orders/chefs/stations
+        initRealtimeSync() {
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'orders') this.loadOrders();
+                if (e.key === 'tables') this.loadTables();
+                if (e.key === 'chefs') this.chefs = JSON.parse(localStorage.getItem('chefs') || '[]');
+                if (e.key === 'stations') this.stations = JSON.parse(localStorage.getItem('stations') || '[]');
+            });
+        },
+        saveChefs() {
+            localStorage.setItem('chefs', JSON.stringify(this.chefs));
+        },
+        saveStations() {
+            localStorage.setItem('stations', JSON.stringify(this.stations));
+        },
+        addChef() {
+            if (this.newChefName && !this.chefs.some(c => c.name === this.newChefName)) {
+                this.chefs.push({ name: this.newChefName });
+                this.newChefName = '';
+                this.saveChefs();
+            }
+        },
+        removeChef(idx) {
+            this.chefs.splice(idx, 1);
+            this.saveChefs();
+        },
+        addStation() {
+            if (this.newStationName && !this.stations.some(s => s.name === this.newStationName)) {
+                this.stations.push({ name: this.newStationName });
+                this.newStationName = '';
+                this.saveStations();
+            }
+        },
+        removeStation(idx) {
+            this.stations.splice(idx, 1);
+            this.saveStations();
         }
     }));
 });

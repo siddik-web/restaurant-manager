@@ -280,11 +280,23 @@
                             <option value="priority" x-text="'By Priority'"></option>
                             <option value="table" x-text="'By Table'"></option>
                         </select>
+                        <!-- Station Filter -->
+                        <select x-model="kdsStationFilter" class="border rounded-lg px-3 py-1 text-sm">
+                            <option value="all">All Stations</option>
+                            <template x-for="station in stations" :key="station.name">
+                                <option :value="station.name" x-text="station.name"></option>
+                            </template>
+                        </select>
                     </div>
                     
                     <button @click="showKdsSettings = true" 
                             class="bg-gray-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-gray-600 transition">
                         <i class="fas fa-cog"></i>
+                    </button>
+                    <button @click="showChefStationManager = true"
+                            class="bg-primary text-white px-3 py-1 rounded-lg text-sm hover:bg-teal-700 transition">
+                        <i class="fas fa-users-cog"></i>
+                        <span class="hidden md:inline" x-text="translations.kdsManageChefs"></span>
                     </button>
                 </div>
             </div>
@@ -384,6 +396,27 @@
                                             </button>
                                         </div>
                                     </div>
+                                    
+                                    <!-- Assigned Chef/Station -->
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <template x-if="order.assignedChef">
+                                            <div class="bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1">
+                                                <i class="fas fa-user-tie text-primary"></i>
+                                                <span x-text="translations.kdsAssignedTo + ': ' + order.assignedChef"></span>
+                                                <span x-show="order.assignedStation">| <span x-text="order.assignedStation"></span></span>
+                                                <button @click="unassignOrderChefStation(order.id)" class="ml-2 text-red-500 hover:text-red-700" title="Unassign">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="!order.assignedChef">
+                                            <button @click="showChefAssignModal = true; chefAssignOrderId = order.id; chefAssignName = ''; chefAssignStation = '';" 
+                                                    class="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-teal-700 transition flex items-center gap-1">
+                                                <i class="fas fa-user-plus"></i>
+                                                <span x-text="translations.kdsAssignChef"></span>
+                                            </button>
+                                        </template>
+                                    </div>
                                 </div>
                             </template>
                         </template>
@@ -473,6 +506,27 @@
                                             </button>
                                         </div>
                                     </div>
+                                    
+                                    <!-- Assigned Chef/Station -->
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <template x-if="order.assignedChef">
+                                            <div class="bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1">
+                                                <i class="fas fa-user-tie text-primary"></i>
+                                                <span x-text="translations.kdsAssignedTo + ': ' + order.assignedChef"></span>
+                                                <span x-show="order.assignedStation">| <span x-text="order.assignedStation"></span></span>
+                                                <button @click="unassignOrderChefStation(order.id)" class="ml-2 text-red-500 hover:text-red-700" title="Unassign">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="!order.assignedChef">
+                                            <button @click="showChefAssignModal = true; chefAssignOrderId = order.id; chefAssignName = ''; chefAssignStation = '';" 
+                                                    class="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-teal-700 transition flex items-center gap-1">
+                                                <i class="fas fa-user-plus"></i>
+                                                <span x-text="translations.kdsAssignChef"></span>
+                                            </button>
+                                        </template>
+                                    </div>
                                 </div>
                             </template>
                         </template>
@@ -546,6 +600,27 @@
                                                 <span x-text="translations.complete"></span>
                                             </button>
                                         </div>
+                                    </div>
+                                    
+                                    <!-- Assigned Chef/Station -->
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <template x-if="order.assignedChef">
+                                            <div class="bg-gray-100 px-2 py-1 rounded text-xs flex items-center gap-1">
+                                                <i class="fas fa-user-tie text-primary"></i>
+                                                <span x-text="translations.kdsAssignedTo + ': ' + order.assignedChef"></span>
+                                                <span x-show="order.assignedStation">| <span x-text="order.assignedStation"></span></span>
+                                                <button @click="unassignOrderChefStation(order.id)" class="ml-2 text-red-500 hover:text-red-700" title="Unassign">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="!order.assignedChef">
+                                            <button @click="showChefAssignModal = true; chefAssignOrderId = order.id; chefAssignName = ''; chefAssignStation = '';" 
+                                                    class="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-teal-700 transition flex items-center gap-1">
+                                                <i class="fas fa-user-plus"></i>
+                                                <span x-text="translations.kdsAssignChef"></span>
+                                            </button>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
@@ -1280,6 +1355,109 @@
                 <button @click="showKdsSettings = false; startKdsAutoRefresh()" 
                         class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
                     <span x-text="translations.saveSettings"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chef Assignment Modal -->
+    <div x-show="showChefAssignModal" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showChefAssignModal = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.kdsAssignChef"></h3>
+                <button @click="showChefAssignModal = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form @submit.prevent="assignOrderToChefStation(chefAssignOrderId, chefAssignName, chefAssignStation)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" x-text="translations.kdsSelectChef"></label>
+                    <select x-model="chefAssignName" class="w-full border rounded-lg px-3 py-2" required>
+                        <option value="" disabled selected>Select</option>
+                        <template x-for="chef in chefs" :key="chef.name">
+                            <option :value="chef.name" x-text="chef.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" x-text="translations.kdsSelectStation"></label>
+                    <select x-model="chefAssignStation" class="w-full border rounded-lg px-3 py-2" required>
+                        <option value="" disabled selected>Select</option>
+                        <template x-for="station in stations" :key="station.name">
+                            <option :value="station.name" x-text="station.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showChefAssignModal = false"
+                            class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <span x-text="translations.cancel"></span>
+                    </button>
+                    <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                        <span x-text="translations.kdsSave"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Chef/Station Management Modal -->
+    <div x-show="showChefStationManager" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showChefStationManager = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.kdsManageChefs"></h3>
+                <button @click="showChefStationManager = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div>
+                <div class="flex gap-4 mb-6">
+                    <button @click="chefStationTab = 'chefs'" :class="{'bg-primary text-white': chefStationTab === 'chefs', 'bg-gray-100': chefStationTab !== 'chefs'}" class="px-4 py-2 rounded-lg font-bold">
+                        <span x-text="translations.kdsManageChefs"></span>
+                    </button>
+                    <button @click="chefStationTab = 'stations'" :class="{'bg-primary text-white': chefStationTab === 'stations', 'bg-gray-100': chefStationTab !== 'stations'}" class="px-4 py-2 rounded-lg font-bold">
+                        <span x-text="translations.kdsManageStations"></span>
+                    </button>
+                </div>
+                <!-- Chefs Tab -->
+                <div x-show="chefStationTab === 'chefs'">
+                    <div class="mb-4 flex gap-2">
+                        <input type="text" x-model="newChefName" placeholder="Add chef..." class="border rounded-lg px-3 py-2 flex-1">
+                        <button @click="addChef()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition" x-text="translations.kdsAddChef"></button>
+                    </div>
+                    <ul>
+                        <template x-for="(chef, idx) in chefs" :key="chef.name">
+                            <li class="flex items-center gap-2 mb-2">
+                                <input type="text" x-model="chef.name" class="border rounded-lg px-3 py-1 flex-1">
+                                <button @click="removeChef(idx)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                <!-- Stations Tab -->
+                <div x-show="chefStationTab === 'stations'">
+                    <div class="mb-4 flex gap-2">
+                        <input type="text" x-model="newStationName" placeholder="Add station..." class="border rounded-lg px-3 py-2 flex-1">
+                        <button @click="addStation()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition" x-text="translations.kdsAddStation"></button>
+                    </div>
+                    <ul>
+                        <template x-for="(station, idx) in stations" :key="station.name">
+                            <li class="flex items-center gap-2 mb-2">
+                                <input type="text" x-model="station.name" class="border rounded-lg px-3 py-1 flex-1">
+                                <button @click="removeStation(idx)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button @click="showChefStationManager = false"
+                        class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                    <span x-text="translations.cancel"></span>
                 </button>
             </div>
         </div>
