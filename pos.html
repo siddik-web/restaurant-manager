@@ -108,12 +108,17 @@
                 <!-- Menu Items -->
                 <div class="lg:col-span-2">
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                        <template x-for="recipe in recipes" :key="recipe.id">
+                        <template x-for="recipe in getFilteredRecipes()" :key="recipe.id">
                             <button @click="addToOrder(recipe)"
                                     class="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition text-left">
                                 <div class="font-bold mb-1" x-text="recipe.name"></div>
                                 <div class="text-gray-600 text-sm mb-2" x-text="formatPrice(recipe.price)"></div>
                                 <div class="text-xs text-gray-500" x-text="recipe.category"></div>
+                                <div x-show="recipe.tags && recipe.tags.length > 0" class="mt-2">
+                                    <template x-for="tag in recipe.tags.slice(0, 2)" :key="tag">
+                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-1 py-0.5 rounded mr-1" x-text="tag"></span>
+                                    </template>
+                                </div>
                             </button>
                         </template>
                     </div>
@@ -634,49 +639,95 @@
             </div>
         </div>
 
-        <!-- Recipe Generator -->
+        <!-- Enhanced Recipe Management -->
         <div x-show="currentTab === 'recipes'" class="bg-white rounded-lg shadow-lg p-6">
             <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
                 <i class="fas fa-book"></i>
                 <span x-text="translations.recipes"></span>
             </h2>
             
+            <!-- Recipe Controls -->
+            <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div class="flex-1 min-w-64">
+                    <input type="text" x-model="recipeSearchTerm" placeholder="Search recipes..."
+                           class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <select x-model="recipeFilterCategory" class="border rounded-lg px-3 py-2">
+                    <option value="all">All Categories</option>
+                    <template x-for="category in recipeCategories" :key="category">
+                        <option :value="category" x-text="category"></option>
+                    </template>
+                </select>
+                <select x-model="recipeSortBy" class="border rounded-lg px-3 py-2">
+                    <option value="name">Sort by Name</option>
+                    <option value="price">Sort by Price</option>
+                    <option value="category">Sort by Category</option>
+                    <option value="date">Sort by Date</option>
+                </select>
+                <button @click="recipeSortOrder = recipeSortOrder === 'asc' ? 'desc' : 'asc'"
+                        class="border rounded-lg px-3 py-2 hover:bg-gray-100 transition">
+                    <i class="fas" :class="recipeSortOrder === 'asc' ? 'fa-sort-up' : 'fa-sort-down'"></i>
+                </button>
+                <button @click="showRecipeForm = true; editingRecipe = null; resetRecipeForm()"
+                        class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                    <i class="fas fa-plus mr-1"></i>
+                    <span x-text="translations.addRecipe"></span>
+                </button>
+            </div>
+            
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Recipe List -->
                 <div class="lg:col-span-1">
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="font-bold" x-text="translations.recipeList"></h3>
-                            <button @click="showRecipeForm = true; editingRecipe = null"
-                                    class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700 transition">
-                                <i class="fas fa-plus mr-1"></i>
-                                <span x-text="translations.addRecipe"></span>
-                            </button>
-                        </div>
+                        <h3 class="font-bold mb-4" x-text="translations.recipeList"></h3>
                         
-                        <div class="space-y-2">
-                            <template x-for="recipe in recipes" :key="recipe.id">
-                                <div class="bg-white border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50"
+                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                            <template x-for="recipe in getFilteredRecipes()" :key="recipe.id">
+                                <div class="bg-white border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition"
                                      @click="selectedRecipe = recipe; showRecipeForm = false">
-                                    <div>
-                                        <div class="font-bold" x-text="recipe.name"></div>
-                                        <div class="text-sm text-gray-600" x-text="recipe.category"></div>
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex-1">
+                                            <div class="font-bold" x-text="recipe.name"></div>
+                                            <div class="text-sm text-gray-600" x-text="recipe.category"></div>
+                                            <div class="text-sm font-bold text-primary" x-text="formatPrice(recipe.price)"></div>
+                                        </div>
+                                        <div class="flex gap-1" @click.stop>
+                                            <button @click="duplicateRecipe(recipe)"
+                                                    class="text-blue-500 hover:text-blue-700" title="Duplicate">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <button @click="editRecipe(recipe)"
+                                                    class="text-green-500 hover:text-green-700" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button @click="toggleRecipeActive(recipe.id)"
+                                                    class="text-yellow-500 hover:text-yellow-700" title="Toggle Active">
+                                                <i class="fas" :class="recipe.isActive ? 'fa-eye' : 'fa-eye-slash'"></i>
+                                            </button>
+                                            <button @click="deleteRecipe(recipe.id)"
+                                                    class="text-red-500 hover:text-red-700" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2" @click.stop>
-                                        <button @click="editRecipe(recipe)"
-                                                class="text-blue-500 hover:text-blue-700">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button @click="deleteRecipe(recipe.id)"
-                                                class="text-red-500 hover:text-red-700">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                    <div class="text-xs text-gray-500">
+                                        <span x-text="'Prep: ' + recipe.prepTime + 'm'"></span>
+                                        <span x-show="recipe.cookTime > 0" x-text="' | Cook: ' + recipe.cookTime + 'm'"></span>
+                                        <span x-text="' | ' + recipe.difficulty"></span>
+                                    </div>
+                                    <div x-show="recipe.tags && recipe.tags.length > 0" class="mt-2">
+                                        <template x-for="tag in recipe.tags" :key="tag">
+                                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1" x-text="tag"></span>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
                             
-                            <template x-if="recipes.length === 0">
-                                <div class="text-center text-gray-500 py-4" x-text="translations.noRecipes"></div>
+                            <template x-if="getFilteredRecipes().length === 0">
+                                <div class="text-center text-gray-500 py-8">
+                                    <i class="fas fa-search text-2xl mb-2"></i>
+                                    <p x-text="'No recipes found matching your criteria'"></p>
+                                </div>
                             </template>
                         </div>
                     </div>
@@ -696,8 +747,12 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium mb-1" x-text="translations.category"></label>
-                                    <input type="text" x-model="recipeForm.category" required
-                                           class="w-full border rounded-lg px-3 py-2">
+                                    <select x-model="recipeForm.category" required class="w-full border rounded-lg px-3 py-2">
+                                        <option value="">Select Category</option>
+                                        <template x-for="category in recipeCategories" :key="category">
+                                            <option :value="category" x-text="category"></option>
+                                        </template>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium mb-1" x-text="translations.price"></label>
@@ -709,36 +764,76 @@
                                     <input type="number" x-model="recipeForm.basePortions" min="1" required
                                            class="w-full border rounded-lg px-3 py-2">
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Prep Time (minutes)</label>
+                                    <input type="number" x-model="recipeForm.prepTime" min="0" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Cook Time (minutes)</label>
+                                    <input type="number" x-model="recipeForm.cookTime" min="0" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Difficulty</label>
+                                    <select x-model="recipeForm.difficulty" class="w-full border rounded-lg px-3 py-2">
+                                        <option value="easy">Easy</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Active</label>
+                                    <div class="flex items-center mt-2">
+                                        <input type="checkbox" x-model="recipeForm.isActive" class="mr-2">
+                                        <span class="text-sm">Available for ordering</span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="mb-4">
                                 <label class="block text-sm font-medium mb-1" x-text="translations.ingredients"></label>
                                 <div class="space-y-2">
                                     <template x-for="(ingredient, index) in recipeForm.ingredients" :key="index">
-                                        <div class="flex gap-2">
+                                        <div class="grid grid-cols-12 gap-2">
                                             <input type="text" x-model="ingredient.name" placeholder="Ingredient"
-                                                   class="flex-1 border rounded-lg px-3 py-2">
+                                                   class="col-span-5 border rounded-lg px-3 py-2">
                                             <input type="number" x-model="ingredient.quantity" step="0.01" min="0" placeholder="Qty"
-                                                   class="w-24 border rounded-lg px-3 py-2">
+                                                   class="col-span-2 border rounded-lg px-3 py-2">
                                             <input type="text" x-model="ingredient.unit" placeholder="Unit"
-                                                   class="w-24 border rounded-lg px-3 py-2">
+                                                   class="col-span-2 border rounded-lg px-3 py-2">
+                                            <input type="text" x-model="ingredient.notes" placeholder="Notes"
+                                                   class="col-span-2 border rounded-lg px-3 py-2">
                                             <button type="button" @click="recipeForm.ingredients.splice(index, 1)"
-                                                    class="text-red-500">
+                                                    class="col-span-1 text-red-500 hover:text-red-700">
                                                 <i class="fas fa-times"></i>
                                             </button>
                                         </div>
                                     </template>
                                 </div>
-                                <button type="button" @click="recipeForm.ingredients.push({name: '', quantity: 0, unit: ''})"
+                                <button type="button" @click="recipeForm.ingredients.push({name: '', quantity: 0, unit: '', notes: ''})"
                                         class="mt-2 text-sm text-primary">
                                     <i class="fas fa-plus mr-1"></i>
                                     <span x-text="translations.addIngredient"></span>
                                 </button>
                             </div>
                             
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                                <input type="text" x-model="recipeForm.tags.join(', ')" placeholder="vegetarian, spicy, gluten-free"
+                                       class="w-full border rounded-lg px-3 py-2"
+                                       @input="recipeForm.tags = $event.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)">
+                            </div>
+                            
                             <div class="mb-6">
                                 <label class="block text-sm font-medium mb-1" x-text="translations.instructions"></label>
                                 <textarea x-model="recipeForm.instructions" rows="4"
+                                          class="w-full border rounded-lg px-3 py-2"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1">Notes</label>
+                                <textarea x-model="recipeForm.notes" rows="2"
                                           class="w-full border rounded-lg px-3 py-2"></textarea>
                             </div>
                             
@@ -754,35 +849,74 @@
                         </form>
                     </div>
                     
-                    <!-- Recipe Scaling Tool -->
+                    <!-- Enhanced Recipe Details -->
                     <div x-show="!showRecipeForm && selectedRecipe" class="bg-gray-50 rounded-lg p-6">
-                        <h3 class="font-bold mb-4" x-text="selectedRecipe?.name || ''"></h3>
-                        
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-1" x-text="translations.scaleToPortions"></label>
-                            <input type="number" x-model="scalePortions" min="1" 
-                                   class="w-32 border rounded-lg px-3 py-2">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-bold text-xl" x-text="selectedRecipe?.name || ''"></h3>
+                            <div class="flex gap-2">
+                                <button @click="editRecipe(selectedRecipe)"
+                                        class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition">
+                                    <i class="fas fa-edit mr-1"></i>Edit
+                                </button>
+                                <button @click="duplicateRecipe(selectedRecipe)"
+                                        class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition">
+                                    <i class="fas fa-copy mr-1"></i>Duplicate
+                                </button>
+                            </div>
                         </div>
                         
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium mb-2" x-text="translations.ingredients"></label>
-                            <div class="bg-white border rounded-lg p-4">
-                                <template x-for="ingredient in selectedRecipe?.ingredients || []" :key="ingredient.name">
-                                    <div class="flex justify-between py-2 border-b last:border-b-0">
-                                        <div x-text="ingredient.name"></div>
-                                        <div>
-                                            <span x-text="calculateScaledQuantity(ingredient.quantity, scalePortions, selectedRecipe?.basePortions || 1)"></span>
-                                            <span x-text="ingredient.unit"></span>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white p-3 rounded-lg">
+                                <div class="text-sm text-gray-600">Category</div>
+                                <div class="font-bold" x-text="selectedRecipe?.category"></div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <div class="text-sm text-gray-600">Price</div>
+                                <div class="font-bold text-primary" x-text="formatPrice(selectedRecipe?.price || 0)"></div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <div class="text-sm text-gray-600">Difficulty</div>
+                                <div class="font-bold capitalize" x-text="selectedRecipe?.difficulty"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-bold mb-3">Ingredients</h4>
+                                <div class="bg-white border rounded-lg p-4">
+                                    <template x-for="ingredient in selectedRecipe?.ingredients || []" :key="ingredient.name">
+                                        <div class="flex justify-between py-2 border-b last:border-b-0">
+                                            <div>
+                                                <div class="font-medium" x-text="ingredient.name"></div>
+                                                <div x-show="ingredient.notes" class="text-xs text-gray-500" x-text="ingredient.notes"></div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-bold" x-text="ingredient.quantity + ' ' + ingredient.unit"></div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-bold mb-3">Instructions</h4>
+                                <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
+                                     x-text="selectedRecipe?.instructions || ''"></div>
+                            </div>
+                        </div>
+                        
+                        <div x-show="selectedRecipe?.tags && selectedRecipe.tags.length > 0" class="mt-4">
+                            <h4 class="font-bold mb-2">Tags</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="tag in selectedRecipe.tags" :key="tag">
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm" x-text="tag"></span>
                                 </template>
                             </div>
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-medium mb-2" x-text="translations.instructions"></label>
-                            <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
-                                 x-text="selectedRecipe?.instructions || ''"></div>
+                        <div x-show="selectedRecipe?.notes" class="mt-4">
+                            <h4 class="font-bold mb-2">Notes</h4>
+                            <div class="bg-white border rounded-lg p-4" x-text="selectedRecipe.notes"></div>
                         </div>
                     </div>
                     
@@ -1269,7 +1403,7 @@
         </div>
     </div>
 
-    <!-- Backup Modal -->
+    <!-- Enhanced Backup Modal -->
     <div x-show="showBackup" 
          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
          @click="showBackup = false">
@@ -1284,8 +1418,8 @@
             <div class="space-y-4">
                 <div>
                     <h4 class="font-bold mb-2" x-text="translations.exportBackup"></h4>
-                    <p class="text-sm text-gray-600 mb-3">Export all data including recipes, orders, tables, and settings.</p>
-                    <button @click="exportBackup()" 
+                    <p class="text-sm text-gray-600 mb-3">Export all data including recipes, orders, tables, settings, chefs, and stations.</p>
+                    <button @click="exportAllData()" 
                             class="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">
                         <i class="fas fa-download mr-2"></i>
                         <span x-text="translations.exportBackup"></span>
@@ -1294,9 +1428,25 @@
                 
                 <div class="border-t pt-4">
                     <h4 class="font-bold mb-2" x-text="translations.importBackup"></h4>
-                    <p class="text-sm text-gray-600 mb-3">Import backup file to restore all data.</p>
-                    <input type="file" @change="importBackup($event)" accept=".json"
+                    <p class="text-sm text-gray-600 mb-3">Import backup file to restore all data. This will replace current data.</p>
+                    <input type="file" @change="importBackupFile($event)" accept=".json"
                            class="w-full border rounded-lg px-3 py-2">
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h4 class="font-bold mb-2">Data Management</h4>
+                    <div class="space-y-2">
+                        <button @click="validateAndCleanData(); alert('Data cleaned successfully!')" 
+                                class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                            <i class="fas fa-broom mr-2"></i>
+                            Clean & Validate Data
+                        </button>
+                        <button @click="clearAllData()" 
+                                class="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                            <i class="fas fa-trash mr-2"></i>
+                            Clear All Data
+                        </button>
+                    </div>
                 </div>
             </div>
             

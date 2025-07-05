@@ -104,253 +104,35 @@ document.addEventListener('alpine:init', () => {
             categorySales: []
         },
         
-        // Form data
+        // Recipe Management with enhanced features
+        recipeCategories: ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Pizza', 'Salad', 'Soup', 'Pasta', 'Seafood', 'Meat', 'Vegetarian'],
+        showRecipeCategories: false,
+        recipeSearchTerm: '',
+        recipeFilterCategory: 'all',
+        recipeSortBy: 'name', // name, price, category, date
+        recipeSortOrder: 'asc', // asc, desc
+        
+        // Enhanced recipe form with more fields
         recipeForm: {
             id: null,
             name: '',
             category: '',
             price: 0,
             basePortions: 4,
+            prepTime: 15, // minutes
+            cookTime: 20, // minutes
+            difficulty: 'medium', // easy, medium, hard
+            allergens: [], // array of allergen strings
+            tags: [], // array of tag strings
             ingredients: [
-                {name: '', quantity: 0, unit: ''}
+                {name: '', quantity: 0, unit: '', notes: ''}
             ],
-            instructions: ''
-        },
-        
-        // Translations
-        translations: {
-            // App
-            appTitle: 'Restaurant Manager',
-            
-            // POS
-            pos: 'POS',
-            orderType: 'Order Type',
-            dineIn: 'Dine-In',
-            takeaway: 'Takeaway',
-            delivery: 'Delivery',
-            currentOrder: 'Current Order',
-            item: 'Item',
-            total: 'Total',
-            subtotal: 'Subtotal',
-            tax: 'Tax (10%)',
-            placeOrder: 'Place Order',
-            emptyOrder: 'Add items to your order',
-            
-            // KDS
-            kds: 'Kitchen Display',
-            newOrders: 'New Orders',
-            preparing: 'Preparing',
-            ready: 'Ready',
-            startPreparing: 'Start Preparing',
-            markReady: 'Mark as Ready',
-            complete: 'Complete',
-            noNewOrders: 'No new orders',
-            noPreparingOrders: 'No orders in preparation',
-            noReadyOrders: 'No orders ready',
-            
-            // Enhanced KDS
-            kdsSettings: 'KDS Settings',
-            kdsView: 'KDS View',
-            kdsFilter: 'Filter Orders',
-            kdsSort: 'Sort Orders',
-            kdsAutoRefresh: 'Auto Refresh',
-            kdsSoundEnabled: 'Sound Notifications',
-            kdsNotifications: 'Browser Notifications',
-            kdsRefreshInterval: 'Refresh Interval (seconds)',
-            kdsPriorityOrders: 'Priority Orders',
-            kdsUrgentOrders: 'Urgent Orders',
-            kdsOrderTimer: 'Order Timer',
-            kdsPrepTime: 'Prep Time',
-            kdsEstimatedTime: 'Estimated Time',
-            kdsActualTime: 'Actual Time',
-            kdsTimeRemaining: 'Time Remaining',
-            kdsOverdue: 'Overdue',
-            kdsOnTime: 'On Time',
-            kdsEarly: 'Early',
-            kdsLate: 'Late',
-            kdsOrderNotes: 'Order Notes',
-            kdsSpecialInstructions: 'Special Instructions',
-            kdsAllergenInfo: 'Allergen Information',
-            kdsModifications: 'Modifications',
-            kdsUrgent: 'Urgent',
-            kdsPriority: 'Priority',
-            kdsNormal: 'Normal',
-            kdsLow: 'Low',
-            kdsOrderAge: 'Order Age',
-            kdsTimeInQueue: 'Time in Queue',
-            kdsAveragePrepTime: 'Average Prep Time',
-            kdsKitchenStats: 'Kitchen Statistics',
-            kdsOrdersPerHour: 'Orders per Hour',
-            kdsEfficiency: 'Efficiency',
-            kdsBottleneck: 'Bottleneck Items',
-            kdsPerformance: 'Performance',
-            kdsFullScreen: 'Full Screen',
-            kdsCompactView: 'Compact View',
-            kdsDetailedView: 'Detailed View',
-            kdsPrintOrder: 'Print Order',
-            kdsAssignChef: 'Assign Chef',
-            kdsChefName: 'Chef Name',
-            kdsStation: 'Station',
-            kdsStation1: 'Station 1',
-            kdsStation2: 'Station 2',
-            kdsStation3: 'Station 3',
-            kdsStation4: 'Station 4',
-            kdsAssignOrder: 'Assign Order',
-            kdsUnassignOrder: 'Unassign Order',
-            kdsOrderAssigned: 'Order Assigned',
-            kdsOrderUnassigned: 'Order Unassigned',
-            kdsMarkUrgent: 'Mark Urgent',
-            kdsUnmarkUrgent: 'Unmark Urgent',
-            kdsAddNote: 'Add Note',
-            kdsOrderNotes: 'Order Notes',
-            kdsPrepProgress: 'Prep Progress',
-            kdsKitchenEfficiency: 'Kitchen Efficiency',
-            kdsOnTimeDelivery: 'On-Time Delivery',
-            kdsUrgentOrders: 'Urgent Orders',
-            kdsPriorityOrders: 'Priority Orders',
-            kdsOrderProgress: 'Order Progress',
-            kdsTimeTracking: 'Time Tracking',
-            kdsPerformanceMetrics: 'Performance Metrics',
-            kdsRealTimeUpdates: 'Real-Time Updates',
-            kdsOrderQueue: 'Order Queue',
-            kdsKitchenFlow: 'Kitchen Flow',
-            kdsOrderManagement: 'Order Management',
-            kdsChefAssignment: 'Chef Assignment',
-            kdsStationManagement: 'Station Management',
-            kdsOrderPrioritization: 'Order Prioritization',
-            kdsTimeManagement: 'Time Management',
-            kdsQualityControl: 'Quality Control',
-            kdsKitchenAnalytics: 'Kitchen Analytics',
-            
-            // Recipes
-            recipes: 'Recipes',
-            recipeList: 'Recipe List',
-            addRecipe: 'Add Recipe',
-            editRecipe: 'Edit Recipe',
-            recipeName: 'Recipe Name',
-            category: 'Category',
-            price: 'Price',
-            basePortions: 'Base Portions',
-            ingredients: 'Ingredients',
-            instructions: 'Instructions',
-            addIngredient: 'Add Ingredient',
-            saveRecipe: 'Save Recipe',
-            cancel: 'Cancel',
-            scaleToPortions: 'Scale to Portions',
-            selectRecipe: 'Select a recipe to view details',
-            noRecipes: 'No recipes found. Add your first recipe!',
-            deleteRecipeConfirm: 'Are you sure you want to delete this recipe?',
-            
-            // Settings
-            settings: 'Settings',
-            taxRate: 'Tax Rate (%)',
-            deliveryFee: 'Delivery Fee',
-            currency: 'Currency',
-            saveSettings: 'Save Settings',
-            
-            // Tables
-            tables: 'Tables',
-            tableManagement: 'Table Management',
-            addTable: 'Add Table',
-            tableNumber: 'Table Number',
-            capacity: 'Capacity',
-            status: 'Status',
-            available: 'Available',
-            occupied: 'Occupied',
-            reserved: 'Reserved',
-            selectTable: 'Select Table',
-            noTables: 'No tables available',
-            tableOrders: 'Table Orders',
-            newOrder: 'New Order',
-            viewOrders: 'View Orders',
-            closeTable: 'Close Table',
-            addTable: 'Add Table',
-            editTable: 'Edit Table',
-            deleteTable: 'Delete Table',
-            tableNumber: 'Table Number',
-            capacity: 'Capacity',
-            location: 'Location',
-            notes: 'Notes',
-            reservation: 'Reservation',
-            customerName: 'Customer Name',
-            customerPhone: 'Customer Phone',
-            reservationTime: 'Reservation Time',
-            makeReservation: 'Make Reservation',
-            cancelReservation: 'Cancel Reservation',
-            tableDetails: 'Table Details',
-            tableHistory: 'Table History',
-            occupancyTime: 'Occupancy Time',
-            revenue: 'Revenue',
-            averageOrderValue: 'Average Order Value',
-            tableStatus: 'Table Status',
-            reserved: 'Reserved',
-            cleaning: 'Cleaning',
-            maintenance: 'Maintenance',
-            
-            // Receipt & Print
-            receipt: 'Receipt',
-            printReceipt: 'Print Receipt',
-            printOptions: 'Print Options',
-            print: 'Print',
-            cancel: 'Cancel',
-            receiptNumber: 'Receipt #',
-            date: 'Date',
-            time: 'Time',
-            server: 'Server',
-            customer: 'Customer',
-            items: 'Items',
-            qty: 'Qty',
-            price: 'Price',
-            amount: 'Amount',
-            deliveryFee: 'Delivery Fee',
-            serviceCharge: 'Service Charge',
-            discount: 'Discount',
-            grandTotal: 'Grand Total',
-            paymentMethod: 'Payment Method',
-            cash: 'Cash',
-            card: 'Card',
-            change: 'Change',
-            thankYou: 'Thank You',
-            
-            // Reports
-            reports: 'Reports',
-            salesReport: 'Sales Report',
-            dailyReport: 'Daily Report',
-            monthlyReport: 'Monthly Report',
-            topItems: 'Top Items',
-            categoryReport: 'Category Report',
-            exportData: 'Export Data',
-            generateReport: 'Generate Report',
-            totalSales: 'Total Sales',
-            totalOrders: 'Total Orders',
-            averageOrder: 'Average Order',
-            
-            // Backup & Settings
-            backup: 'Backup & Restore',
-            exportBackup: 'Export Backup',
-            importBackup: 'Import Backup',
-            restoreData: 'Restore Data',
-            restaurantInfo: 'Restaurant Information',
-            contactInfo: 'Contact Information',
-            receiptSettings: 'Receipt Settings',
-            printSettings: 'Print Settings',
-            logoUpload: 'Upload Logo',
-            receiptFooter: 'Receipt Footer',
-            autoPrint: 'Auto Print',
-            receiptWidth: 'Receipt Width (mm)',
-            fontSize: 'Font Size (pt)',
-            kdsAssignChef: 'Assign Chef',
-            kdsUnassignChef: 'Unassign',
-            kdsAssignedTo: 'Assigned to',
-            kdsStation: 'Station',
-            kdsSelectChef: 'Select Chef',
-            kdsSelectStation: 'Select Station',
-            kdsSave: 'Save',
-            kdsManageChefs: 'Manage Chefs',
-            kdsManageStations: 'Manage Stations',
-            kdsAddChef: 'Add Chef',
-            kdsAddStation: 'Add Station',
-            kdsName: 'Name',
+            instructions: '',
+            notes: '',
+            image: '',
+            isActive: true,
+            createdAt: null,
+            updatedAt: null
         },
         
         // Arabic translations
@@ -498,11 +280,16 @@ document.addEventListener('alpine:init', () => {
         
         // Initialize app
         initApp() {
-            // Load data from localStorage
+            // Load all data from localStorage with error handling
             this.loadRecipes();
             this.loadOrders();
             this.loadSettings();
             this.loadTables();
+            this.loadChefs();
+            this.loadStations();
+            
+            // Validate and clean data on startup
+            this.validateAndCleanData();
             
             // Request notification permission
             if ('Notification' in window) {
@@ -533,22 +320,7 @@ document.addEventListener('alpine:init', () => {
                 this.translations = this.arTranslations;
             }
             
-            // Listen for storage events to sync between tabs
-            window.addEventListener('storage', (e) => {
-                if (e.key === 'restaurant_recipes') {
-                    this.recipes = JSON.parse(e.newValue || '[]');
-                }
-                if (e.key === 'restaurant_orders') {
-                    this.orders = JSON.parse(e.newValue || '[]');
-                }
-                if (e.key === 'restaurant_settings') {
-                    this.settings = JSON.parse(e.newValue || '{}');
-                }
-                if (e.key === 'restaurant_tables') {
-                    this.tables = JSON.parse(e.newValue || '[]');
-                }
-            });
-            
+            // Initialize real-time sync
             this.initRealtimeSync();
         },
         
@@ -602,9 +374,17 @@ document.addEventListener('alpine:init', () => {
         
         // Save orders to localStorage
         saveOrders() {
-            localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
-            // Dispatch event to sync across tabs
-            window.dispatchEvent(new Event('storage'));
+            try {
+                localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_orders',
+                    newValue: JSON.stringify(this.orders)
+                }));
+            } catch (error) {
+                console.error('Error saving orders:', error);
+                alert('Error saving orders. Please check your browser storage.');
+            }
         },
         
         // Load settings from localStorage
@@ -619,8 +399,17 @@ document.addEventListener('alpine:init', () => {
         
         // Save settings to localStorage
         saveSettings() {
-            localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
-            window.dispatchEvent(new Event('storage'));
+            try {
+                localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_settings',
+                    newValue: JSON.stringify(this.settings)
+                }));
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings. Please check your browser storage.');
+            }
         },
         
         // Load tables from localStorage
@@ -636,8 +425,17 @@ document.addEventListener('alpine:init', () => {
         
         // Save tables to localStorage
         saveTables() {
-            localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
-            window.dispatchEvent(new Event('storage'));
+            try {
+                localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_tables',
+                    newValue: JSON.stringify(this.tables)
+                }));
+            } catch (error) {
+                console.error('Error saving tables:', error);
+                alert('Error saving tables. Please check your browser storage.');
+            }
         },
         
         // Change language
@@ -1204,10 +1002,20 @@ document.addEventListener('alpine:init', () => {
                 category: '',
                 price: 0,
                 basePortions: 4,
+                prepTime: 15, // minutes
+                cookTime: 20, // minutes
+                difficulty: 'medium', // easy, medium, hard
+                allergens: [], // array of allergen strings
+                tags: [], // array of tag strings
                 ingredients: [
-                    {name: '', quantity: 0, unit: ''}
+                    {name: '', quantity: 0, unit: '', notes: ''}
                 ],
-                instructions: ''
+                instructions: '',
+                notes: '',
+                image: '',
+                isActive: true,
+                createdAt: null,
+                updatedAt: null
             };
         },
         
@@ -1683,17 +1491,58 @@ document.addEventListener('alpine:init', () => {
         // Real-time sync for orders/chefs/stations
         initRealtimeSync() {
             window.addEventListener('storage', (e) => {
-                if (e.key === 'orders') this.loadOrders();
-                if (e.key === 'tables') this.loadTables();
-                if (e.key === 'chefs') this.chefs = JSON.parse(localStorage.getItem('chefs') || '[]');
-                if (e.key === 'stations') this.stations = JSON.parse(localStorage.getItem('stations') || '[]');
+                try {
+                    if (e.key === 'restaurant_orders') {
+                        this.orders = JSON.parse(e.newValue || '[]');
+                    }
+                    if (e.key === 'restaurant_tables') {
+                        this.tables = JSON.parse(e.newValue || '[]');
+                    }
+                    if (e.key === 'restaurant_chefs') {
+                        this.chefs = JSON.parse(e.newValue || '[]');
+                    }
+                    if (e.key === 'restaurant_stations') {
+                        this.stations = JSON.parse(e.newValue || '[]');
+                    }
+                    if (e.key === 'restaurant_recipes') {
+                        this.recipes = JSON.parse(e.newValue || '[]');
+                    }
+                    if (e.key === 'restaurant_settings') {
+                        this.settings = { ...this.settings, ...JSON.parse(e.newValue || '{}') };
+                    }
+                    if (e.key === 'restaurant_recipe_categories') {
+                        this.recipeCategories = JSON.parse(e.newValue || '[]');
+                    }
+                } catch (error) {
+                    console.error('Error syncing data:', error);
+                }
             });
         },
         saveChefs() {
-            localStorage.setItem('chefs', JSON.stringify(this.chefs));
+            try {
+                localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_chefs',
+                    newValue: JSON.stringify(this.chefs)
+                }));
+            } catch (error) {
+                console.error('Error saving chefs:', error);
+                alert('Error saving chefs. Please check your browser storage.');
+            }
         },
         saveStations() {
-            localStorage.setItem('stations', JSON.stringify(this.stations));
+            try {
+                localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_stations',
+                    newValue: JSON.stringify(this.stations)
+                }));
+            } catch (error) {
+                console.error('Error saving stations:', error);
+                alert('Error saving stations. Please check your browser storage.');
+            }
         },
         addChef() {
             if (this.newChefName && !this.chefs.some(c => c.name === this.newChefName)) {
@@ -1716,6 +1565,457 @@ document.addEventListener('alpine:init', () => {
         removeStation(idx) {
             this.stations.splice(idx, 1);
             this.saveStations();
+        },
+        // Enhanced Recipe Management Functions
+        getFilteredRecipes() {
+            let filteredRecipes = this.recipes.filter(recipe => recipe.isActive !== false);
+            
+            // Apply search filter
+            if (this.recipeSearchTerm) {
+                const searchTerm = this.recipeSearchTerm.toLowerCase();
+                filteredRecipes = filteredRecipes.filter(recipe => 
+                    recipe.name.toLowerCase().includes(searchTerm) ||
+                    recipe.category.toLowerCase().includes(searchTerm) ||
+                    recipe.tags.some(tag => tag.toLowerCase().includes(searchTerm)) ||
+                    recipe.ingredients.some(ing => ing.name.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // Apply category filter
+            if (this.recipeFilterCategory !== 'all') {
+                filteredRecipes = filteredRecipes.filter(recipe => 
+                    recipe.category === this.recipeFilterCategory
+                );
+            }
+            
+            // Apply sorting
+            filteredRecipes.sort((a, b) => {
+                let aValue, bValue;
+                
+                switch(this.recipeSortBy) {
+                    case 'name':
+                        aValue = a.name.toLowerCase();
+                        bValue = b.name.toLowerCase();
+                        break;
+                    case 'price':
+                        aValue = a.price;
+                        bValue = b.price;
+                        break;
+                    case 'category':
+                        aValue = a.category.toLowerCase();
+                        bValue = b.category.toLowerCase();
+                        break;
+                    case 'date':
+                        aValue = a.createdAt || 0;
+                        bValue = b.createdAt || 0;
+                        break;
+                    default:
+                        aValue = a.name.toLowerCase();
+                        bValue = b.name.toLowerCase();
+                }
+                
+                if (this.recipeSortOrder === 'desc') {
+                    return aValue < bValue ? 1 : -1;
+                } else {
+                    return aValue > bValue ? 1 : -1;
+                }
+            });
+            
+            return filteredRecipes;
+        },
+        
+        addRecipeCategory(category) {
+            if (category && !this.recipeCategories.includes(category)) {
+                this.recipeCategories.push(category);
+                this.saveRecipeCategories();
+            }
+        },
+        
+        removeRecipeCategory(category) {
+            const index = this.recipeCategories.indexOf(category);
+            if (index > -1) {
+                this.recipeCategories.splice(index, 1);
+                this.saveRecipeCategories();
+            }
+        },
+        
+        saveRecipeCategories() {
+            localStorage.setItem('restaurant_recipe_categories', JSON.stringify(this.recipeCategories));
+        },
+        
+        loadRecipeCategories() {
+            const savedCategories = localStorage.getItem('restaurant_recipe_categories');
+            if (savedCategories) {
+                this.recipeCategories = JSON.parse(savedCategories);
+            }
+        },
+        
+        // Enhanced recipe save with timestamps and validation
+        saveRecipe() {
+            // Validate required fields
+            if (!this.recipeForm.name.trim() || !this.recipeForm.category.trim() || this.recipeForm.price <= 0) {
+                alert('Please fill in all required fields (name, category, price)');
+                return;
+            }
+            
+            const now = Date.now();
+            
+            if (this.editingRecipe) {
+                // Update existing recipe
+                const index = this.recipes.findIndex(r => r.id === this.recipeForm.id);
+                if (index !== -1) {
+                    this.recipes[index] = {
+                        ...this.recipeForm,
+                        updatedAt: now
+                    };
+                }
+            } else {
+                // Add new recipe
+                this.recipeForm.id = now;
+                this.recipeForm.createdAt = now;
+                this.recipeForm.updatedAt = now;
+                this.recipes.push({...this.recipeForm});
+            }
+            
+            this.saveRecipes();
+            this.showRecipeForm = false;
+            this.editingRecipe = null;
+            this.resetRecipeForm();
+        },
+        
+        resetRecipeForm() {
+            this.recipeForm = {
+                id: null,
+                name: '',
+                category: '',
+                price: 0,
+                basePortions: 4,
+                prepTime: 15,
+                cookTime: 20,
+                difficulty: 'medium',
+                allergens: [],
+                tags: [],
+                ingredients: [
+                    {name: '', quantity: 0, unit: '', notes: ''}
+                ],
+                instructions: '',
+                notes: '',
+                image: '',
+                isActive: true,
+                createdAt: null,
+                updatedAt: null
+            };
+        },
+        
+        duplicateRecipe(recipe) {
+            const duplicatedRecipe = {
+                ...recipe,
+                id: Date.now(),
+                name: recipe.name + ' (Copy)',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            this.recipes.push(duplicatedRecipe);
+            this.saveRecipes();
+        },
+        
+        toggleRecipeActive(recipeId) {
+            const recipe = this.recipes.find(r => r.id === recipeId);
+            if (recipe) {
+                recipe.isActive = !recipe.isActive;
+                recipe.updatedAt = Date.now();
+                this.saveRecipes();
+            }
+        },
+        
+        // Enhanced localStorage functions with better error handling
+        saveRecipes() {
+            try {
+                localStorage.setItem('restaurant_recipes', JSON.stringify(this.recipes));
+                // Trigger storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'restaurant_recipes',
+                    newValue: JSON.stringify(this.recipes)
+                }));
+            } catch (error) {
+                console.error('Error saving recipes:', error);
+                alert('Error saving recipes. Please check your browser storage.');
+            }
+        },
+        
+        loadRecipes() {
+            try {
+                const savedRecipes = localStorage.getItem('restaurant_recipes');
+                this.recipes = savedRecipes ? JSON.parse(savedRecipes) : this.getDefaultRecipes();
+                this.loadRecipeCategories();
+            } catch (error) {
+                console.error('Error loading recipes:', error);
+                this.recipes = this.getDefaultRecipes();
+            }
+        },
+        
+        getDefaultRecipes() {
+            return [
+                {
+                    id: 1,
+                    name: 'Margherita Pizza',
+                    category: 'Pizza',
+                    price: 12.99,
+                    basePortions: 2,
+                    prepTime: 10,
+                    cookTime: 15,
+                    difficulty: 'medium',
+                    allergens: ['gluten', 'dairy'],
+                    tags: ['vegetarian', 'classic'],
+                    ingredients: [
+                        {name: 'Pizza Dough', quantity: 1, unit: 'pc', notes: 'Fresh or frozen'},
+                        {name: 'Tomato Sauce', quantity: 150, unit: 'g', notes: 'Homemade or store-bought'},
+                        {name: 'Mozzarella', quantity: 200, unit: 'g', notes: 'Fresh mozzarella'},
+                        {name: 'Basil', quantity: 5, unit: 'leaves', notes: 'Fresh basil leaves'}
+                    ],
+                    instructions: '1. Preheat oven to 250°C\n2. Roll out pizza dough\n3. Spread tomato sauce evenly\n4. Add mozzarella cheese\n5. Add fresh basil leaves\n6. Bake for 10-12 minutes until golden',
+                    notes: 'Classic Italian pizza with simple, fresh ingredients',
+                    image: '',
+                    isActive: true,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                },
+                {
+                    id: 2,
+                    name: 'Caesar Salad',
+                    category: 'Salad',
+                    price: 8.99,
+                    basePortions: 1,
+                    prepTime: 15,
+                    cookTime: 0,
+                    difficulty: 'easy',
+                    allergens: ['gluten', 'dairy', 'eggs'],
+                    tags: ['healthy', 'classic'],
+                    ingredients: [
+                        {name: 'Romaine Lettuce', quantity: 1, unit: 'head', notes: 'Fresh and crisp'},
+                        {name: 'Parmesan Cheese', quantity: 50, unit: 'g', notes: 'Freshly grated'},
+                        {name: 'Croutons', quantity: 100, unit: 'g', notes: 'Homemade or store-bought'},
+                        {name: 'Caesar Dressing', quantity: 60, unit: 'ml', notes: 'Homemade dressing'},
+                        {name: 'Black Pepper', quantity: 1, unit: 'tsp', notes: 'Freshly ground'}
+                    ],
+                    instructions: '1. Wash and chop romaine lettuce\n2. Make Caesar dressing\n3. Toss lettuce with dressing\n4. Add croutons and parmesan\n5. Season with black pepper',
+                    notes: 'Classic Caesar salad with homemade dressing',
+                    image: '',
+                    isActive: true,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                }
+            ];
+        },
+        
+        // Data validation and cleanup functions
+        validateAndCleanData() {
+            // Clean up orders (remove invalid ones)
+            this.orders = this.orders.filter(order => 
+                order && order.id && order.items && Array.isArray(order.items)
+            );
+            
+            // Clean up recipes (remove invalid ones)
+            this.recipes = this.recipes.filter(recipe => 
+                recipe && recipe.id && recipe.name && recipe.price > 0
+            );
+            
+            // Clean up tables (remove invalid ones)
+            this.tables = this.tables.filter(table => 
+                table && table.id && table.number
+            );
+            
+            // Save cleaned data
+            this.saveOrders();
+            this.saveRecipes();
+            this.saveTables();
+        },
+        
+        // Export all data with validation
+        exportAllData() {
+            try {
+                const exportData = {
+                    recipes: this.recipes,
+                    orders: this.orders,
+                    tables: this.tables,
+                    settings: this.settings,
+                    chefs: this.chefs,
+                    stations: this.stations,
+                    recipeCategories: this.recipeCategories,
+                    exportDate: new Date().toISOString(),
+                    version: '1.0'
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `restaurant_backup_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                return true;
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                alert('Error exporting data. Please try again.');
+                return false;
+            }
+        },
+        
+        // Import all data with validation
+        importAllData(jsonData) {
+            try {
+                const data = JSON.parse(jsonData);
+                
+                // Validate data structure
+                if (!data.recipes || !data.orders || !data.tables || !data.settings) {
+                    throw new Error('Invalid backup file format');
+                }
+                
+                // Import data with validation
+                this.recipes = Array.isArray(data.recipes) ? data.recipes : [];
+                this.orders = Array.isArray(data.orders) ? data.orders : [];
+                this.tables = Array.isArray(data.tables) ? data.tables : [];
+                this.settings = data.settings || {};
+                this.chefs = Array.isArray(data.chefs) ? data.chefs : [];
+                this.stations = Array.isArray(data.stations) ? data.stations : [];
+                this.recipeCategories = Array.isArray(data.recipeCategories) ? data.recipeCategories : [];
+                
+                // Save all imported data
+                this.saveRecipes();
+                this.saveOrders();
+                this.saveTables();
+                this.saveSettings();
+                this.saveChefs();
+                this.saveStations();
+                this.saveRecipeCategories();
+                
+                // Validate and clean imported data
+                this.validateAndCleanData();
+                
+                alert('Data imported successfully!');
+                return true;
+            } catch (error) {
+                console.error('Error importing data:', error);
+                alert('Error importing data. Please check the file format.');
+                return false;
+            }
+        },
+        
+        loadStations() {
+            try {
+                const savedStations = localStorage.getItem('restaurant_stations');
+                this.stations = savedStations ? JSON.parse(savedStations) : [
+                    { name: 'Grill' },
+                    { name: 'Fry' },
+                    { name: 'Salad' },
+                    { name: 'Dessert' }
+                ];
+            } catch (error) {
+                console.error('Error loading stations:', error);
+                this.stations = [
+                    { name: 'Grill' },
+                    { name: 'Fry' },
+                    { name: 'Salad' },
+                    { name: 'Dessert' }
+                ];
+            }
+        },
+        
+        loadChefs() {
+            try {
+                const savedChefs = localStorage.getItem('restaurant_chefs');
+                this.chefs = savedChefs ? JSON.parse(savedChefs) : [
+                    { name: 'Chef Anna' },
+                    { name: 'Chef Ben' },
+                    { name: 'Chef Carlos' }
+                ];
+            } catch (error) {
+                console.error('Error loading chefs:', error);
+                this.chefs = [
+                    { name: 'Chef Anna' },
+                    { name: 'Chef Ben' },
+                    { name: 'Chef Carlos' }
+                ];
+            }
+        },
+        
+        // Import backup file with enhanced validation
+        importBackupFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const jsonData = e.target.result;
+                this.importAllData(jsonData);
+            };
+            reader.readAsText(file);
+        },
+        
+        // Clear all data with confirmation
+        clearAllData() {
+            if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+                try {
+                    // Clear all localStorage
+                    localStorage.removeItem('restaurant_recipes');
+                    localStorage.removeItem('restaurant_orders');
+                    localStorage.removeItem('restaurant_tables');
+                    localStorage.removeItem('restaurant_settings');
+                    localStorage.removeItem('restaurant_chefs');
+                    localStorage.removeItem('restaurant_stations');
+                    localStorage.removeItem('restaurant_recipe_categories');
+                    
+                    // Reset all data arrays
+                    this.recipes = [];
+                    this.orders = [];
+                    this.tables = [];
+                    this.chefs = [];
+                    this.stations = [];
+                    this.recipeCategories = ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Pizza', 'Salad', 'Soup', 'Pasta', 'Seafood', 'Meat', 'Vegetarian'];
+                    
+                    // Reset settings to defaults
+                    this.settings = {
+                        restaurantName: 'My Restaurant',
+                        address: '',
+                        phone: '',
+                        email: '',
+                        website: '',
+                        taxRate: 10,
+                        deliveryFee: 2.99,
+                        currency: 'USD',
+                        receiptFooter: 'Thank you for your business!',
+                        printHeader: true,
+                        printFooter: true,
+                        autoPrint: false,
+                        receiptWidth: 80,
+                        fontSize: 12
+                    };
+                    
+                    // Reset current order
+                    this.currentOrder = {
+                        items: [],
+                        subtotal: 0,
+                        tax: 0,
+                        total: 0,
+                        tableNumber: null,
+                        deliveryFee: 0
+                    };
+                    
+                    // Reset form states
+                    this.selectedRecipe = null;
+                    this.selectedTable = null;
+                    this.showRecipeForm = false;
+                    this.showTableForm = false;
+                    this.showBackup = false;
+                    
+                    alert('All data has been cleared successfully.');
+                } catch (error) {
+                    console.error('Error clearing data:', error);
+                    alert('Error clearing data. Please try again.');
+                }
+            }
         }
     }));
 });
