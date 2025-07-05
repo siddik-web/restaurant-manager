@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f766e',
+                        secondary: '#f97316'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="app.js"></script>
+   
+</head>
+<body x-data="app()" x-init="initApp()" :dir="direction" :class="{'rtl': direction === 'rtl'}">
+    <!-- App Header -->
+    <header class="bg-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fas fa-utensils"></i>
+                <span x-text="translations.appTitle"></span>
+            </h1>
+            
+            <div class="flex items-center gap-4">
+                <!-- Language Switcher -->
+                <div class="flex gap-2">
+                    <button @click="changeLanguage('en')" 
+                            class="px-3 py-1 rounded-md"
+                            :class="{'bg-white text-primary': language === 'en'}">
+                        EN
+                    </button>
+                    <button @click="changeLanguage('ar')" 
+                            class="px-3 py-1 rounded-md"
+                            :class="{'bg-white text-primary': language === 'ar'}">
+                        AR
+                    </button>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="flex gap-4">
+                    <button @click="currentTab = 'pos'" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                            :class="{'bg-white text-primary': currentTab === 'pos'}">
+                        <i class="fas fa-cash-register mr-2"></i>
+                        <span x-text="translations.pos"></span>
+                    </button>
+                    <button @click="currentTab = 'kds'" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                            :class="{'bg-white text-primary': currentTab === 'kds'}">
+                        <i class="fas fa-tv mr-2"></i>
+                        <span x-text="translations.kds"></span>
+                    </button>
+                    <button @click="currentTab = 'recipes'" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                            :class="{'bg-white text-primary': currentTab === 'recipes'}">
+                        <i class="fas fa-book mr-2"></i>
+                        <span x-text="translations.recipes"></span>
+                    </button>
+                    <button @click="currentTab = 'tables'" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                            :class="{'bg-white text-primary': currentTab === 'tables'}">
+                        <i class="fas fa-chair mr-2"></i>
+                        <span x-text="translations.tables"></span>
+                    </button>
+                    <button @click="currentTab = 'reports'; generateReports()" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                            :class="{'bg-white text-primary': currentTab === 'reports'}">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        <span x-text="translations.reports"></span>
+                    </button>
+                </nav>
+                
+                <!-- Settings & Backup Buttons -->
+                <div class="flex gap-2">
+                    <button @click="showBackup = true" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
+                        <i class="fas fa-database"></i>
+                    </button>
+                    <button @click="showSettings = true" 
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <!-- POS System -->
+        <div x-show="currentTab === 'pos'" class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
+                <i class="fas fa-cash-register"></i>
+                <span x-text="translations.pos"></span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Menu Items -->
+                <div class="lg:col-span-2">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <template x-for="recipe in recipes" :key="recipe.id">
+                            <button @click="addToOrder(recipe)"
+                                    class="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition text-left">
+                                <div class="font-bold mb-1" x-text="recipe.name"></div>
+                                <div class="text-gray-600 text-sm mb-2" x-text="formatPrice(recipe.price)"></div>
+                                <div class="text-xs text-gray-500" x-text="recipe.category"></div>
+                            </button>
+                        </template>
+                    </div>
+                    
+                    <!-- Order Type and Table Selection -->
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                        <h3 class="font-bold mb-3" x-text="translations.orderType"></h3>
+                        <div class="flex gap-4 mb-4">
+                            <button @click="orderType = 'dine-in'; currentOrder.tableNumber = null" 
+                                    class="px-4 py-2 rounded-lg border"
+                                    :class="{'bg-primary text-white border-primary': orderType === 'dine-in'}">
+                                <i class="fas fa-utensils mr-2"></i>
+                                <span x-text="translations.dineIn"></span>
+                            </button>
+                            <button @click="orderType = 'takeaway'; currentOrder.tableNumber = null" 
+                                    class="px-4 py-2 rounded-lg border"
+                                    :class="{'bg-primary text-white border-primary': orderType === 'takeaway'}">
+                                <i class="fas fa-box mr-2"></i>
+                                <span x-text="translations.takeaway"></span>
+                            </button>
+                            <button @click="orderType = 'delivery'; currentOrder.tableNumber = null" 
+                                    class="px-4 py-2 rounded-lg border"
+                                    :class="{'bg-primary text-white border-primary': orderType === 'delivery'}">
+                                <i class="fas fa-truck mr-2"></i>
+                                <span x-text="translations.delivery"></span>
+                            </button>
+                        </div>
+                        
+                        <!-- Table Selection for Dine-in -->
+                        <div x-show="orderType === 'dine-in'" class="mt-4">
+                            <h4 class="font-bold mb-2" x-text="translations.selectTable"></h4>
+                            <div class="grid grid-cols-4 gap-2">
+                                <template x-for="table in tables" :key="table.id">
+                                    <button @click="selectTable(table.number)"
+                                            class="p-3 rounded-lg border text-center"
+                                            :class="{
+                                                'bg-primary text-white border-primary': currentOrder.tableNumber === table.number,
+                                                'bg-white border-gray-300': currentOrder.tableNumber !== table.number,
+                                                'opacity-50': table.status === 'occupied'
+                                            }"
+                                            :disabled="table.status === 'occupied'">
+                                        <div class="font-bold" x-text="'Table ' + table.number"></div>
+                                        <div class="text-xs" x-text="table.capacity + ' seats'"></div>
+                                        <div class="text-xs mt-1 px-2 py-1 rounded-full" 
+                                             :class="getTableStatusColor(table.status)"
+                                             x-text="translations[table.status]"></div>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Current Order -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="font-bold text-lg mb-4" x-text="translations.currentOrder"></h3>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between font-bold mb-2">
+                            <span x-text="translations.item"></span>
+                            <span x-text="translations.total"></span>
+                        </div>
+                        
+                        <div class="divide-y">
+                            <template x-for="(item, index) in currentOrder.items" :key="index">
+                                <div class="py-2 flex justify-between items-center">
+                                    <div>
+                                        <div class="font-medium" x-text="item.name"></div>
+                                        <div class="text-sm text-gray-600" x-text="formatPrice(item.price)"></div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button @click="updateItemQuantity(index, item.quantity - 1)"
+                                                class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                            <i class="fas fa-minus text-xs"></i>
+                                        </button>
+                                        <span x-text="item.quantity"></span>
+                                        <button @click="updateItemQuantity(index, item.quantity + 1)"
+                                                class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                        <button @click="removeItem(index)" class="ml-2 text-red-500">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="currentOrder.items.length === 0">
+                                <div class="py-4 text-center text-gray-500" x-text="translations.emptyOrder"></div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <div class="flex justify-between mb-2">
+                            <span x-text="translations.subtotal"></span>
+                            <span x-text="formatPrice(currentOrder.subtotal)"></span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span x-text="translations.tax + ' (' + settings.taxRate + '%)'"></span>
+                            <span x-text="formatPrice(currentOrder.tax)"></span>
+                        </div>
+                        <div x-show="orderType === 'delivery'" class="flex justify-between mb-2">
+                            <span x-text="translations.deliveryFee"></span>
+                            <span x-text="formatPrice(currentOrder.deliveryFee)"></span>
+                        </div>
+                        <div class="flex justify-between font-bold text-lg pt-4 border-t">
+                            <span x-text="translations.total"></span>
+                            <span x-text="formatPrice(currentOrder.total)"></span>
+                        </div>
+                        
+                        <!-- Table/Order Info -->
+                        <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+                            <div class="text-sm">
+                                <div class="flex justify-between mb-1">
+                                    <span x-text="translations.orderType"></span>
+                                    <span x-text="translations[orderType]"></span>
+                                </div>
+                                <div x-show="orderType === 'dine-in' && currentOrder.tableNumber" class="flex justify-between">
+                                    <span x-text="translations.tableNumber"></span>
+                                    <span x-text="'Table ' + currentOrder.tableNumber"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button @click="placeOrder()" 
+                            :disabled="currentOrder.items.length === 0"
+                            class="w-full mt-6 bg-primary text-white py-3 rounded-lg font-bold hover:bg-teal-700 transition disabled:opacity-50"
+                            x-text="translations.placeOrder">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kitchen Display System -->
+        <div x-show="currentTab === 'kds'" class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
+                <i class="fas fa-tv"></i>
+                <span x-text="translations.kds"></span>
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Order Status Columns -->
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-center bg-blue-100 py-2 rounded">
+                        <i class="fas fa-bell mr-2"></i>
+                        <span x-text="translations.newOrders"></span>
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <template x-for="order in orders" :key="order.id">
+                            <template x-if="order.status === 'new'">
+                                <div class="bg-white border border-blue-200 rounded-lg p-4 shadow">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
+                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                        </div>
+                                        <div class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                                            <span x-text="translations[order.type]"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-t pt-2 mt-2">
+                                        <template x-for="item in order.items" :key="item.id">
+                                            <div class="flex justify-between text-sm py-1">
+                                                <div>
+                                                    <span x-text="item.quantity + '×'"></span>
+                                                    <span x-text="item.name"></span>
+                                                </div>
+                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <div class="mt-4 flex justify-end">
+                                        <button @click="updateOrderStatus(order.id, 'preparing')"
+                                                class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
+                                            <i class="fas fa-play mr-1"></i>
+                                            <span x-text="translations.startPreparing"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        
+                        <template x-if="orders.filter(o => o.status === 'new').length === 0">
+                            <div class="text-center text-gray-500 py-8" x-text="translations.noNewOrders"></div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-center bg-orange-100 py-2 rounded">
+                        <i class="fas fa-clock mr-2"></i>
+                        <span x-text="translations.preparing"></span>
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <template x-for="order in orders" :key="order.id">
+                            <template x-if="order.status === 'preparing'">
+                                <div class="bg-white border border-orange-200 rounded-lg p-4 shadow">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
+                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                        </div>
+                                        <div class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">
+                                            <span x-text="translations[order.type]"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-t pt-2 mt-2">
+                                        <template x-for="item in order.items" :key="item.id">
+                                            <div class="flex justify-between text-sm py-1">
+                                                <div>
+                                                    <span x-text="item.quantity + '×'"></span>
+                                                    <span x-text="item.name"></span>
+                                                </div>
+                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <div class="mt-4 flex justify-end gap-2">
+                                        <button @click="generateReceipt(order)"
+                                                class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
+                                            <i class="fas fa-print mr-1"></i>
+                                            <span x-text="translations.printReceipt"></span>
+                                        </button>
+                                        <button @click="updateOrderStatus(order.id, 'ready')"
+                                                class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition">
+                                            <i class="fas fa-check mr-1"></i>
+                                            <span x-text="translations.markReady"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        
+                        <template x-if="orders.filter(o => o.status === 'preparing').length === 0">
+                            <div class="text-center text-gray-500 py-8" x-text="translations.noPreparingOrders"></div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-4 text-center bg-green-100 py-2 rounded">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span x-text="translations.ready"></span>
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <template x-for="order in orders" :key="order.id">
+                            <template x-if="order.status === 'ready'">
+                                <div class="bg-white border border-green-200 rounded-lg p-4 shadow">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
+                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                        </div>
+                                        <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                            <span x-text="translations[order.type]"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-t pt-2 mt-2">
+                                        <template x-for="item in order.items" :key="item.id">
+                                            <div class="flex justify-between text-sm py-1">
+                                                <div>
+                                                    <span x-text="item.quantity + '×'"></span>
+                                                    <span x-text="item.name"></span>
+                                                </div>
+                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <div class="mt-4 flex justify-end gap-2">
+                                        <button @click="generateReceipt(order)"
+                                                class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
+                                            <i class="fas fa-print mr-1"></i>
+                                            <span x-text="translations.printReceipt"></span>
+                                        </button>
+                                        <button @click="completeOrder(order.id)"
+                                                class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition">
+                                            <i class="fas fa-times mr-1"></i>
+                                            <span x-text="translations.complete"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        
+                        <template x-if="orders.filter(o => o.status === 'ready').length === 0">
+                            <div class="text-center text-gray-500 py-8" x-text="translations.noReadyOrders"></div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipe Generator -->
+        <div x-show="currentTab === 'recipes'" class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
+                <i class="fas fa-book"></i>
+                <span x-text="translations.recipes"></span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Recipe List -->
+                <div class="lg:col-span-1">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold" x-text="translations.recipeList"></h3>
+                            <button @click="showRecipeForm = true; editingRecipe = null"
+                                    class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700 transition">
+                                <i class="fas fa-plus mr-1"></i>
+                                <span x-text="translations.addRecipe"></span>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <template x-for="recipe in recipes" :key="recipe.id">
+                                <div class="bg-white border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50"
+                                     @click="selectedRecipe = recipe; showRecipeForm = false">
+                                    <div>
+                                        <div class="font-bold" x-text="recipe.name"></div>
+                                        <div class="text-sm text-gray-600" x-text="recipe.category"></div>
+                                    </div>
+                                    <div class="flex gap-2" @click.stop>
+                                        <button @click="editRecipe(recipe)"
+                                                class="text-blue-500 hover:text-blue-700">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button @click="deleteRecipe(recipe.id)"
+                                                class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="recipes.length === 0">
+                                <div class="text-center text-gray-500 py-4" x-text="translations.noRecipes"></div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recipe Form/Details -->
+                <div class="lg:col-span-2">
+                    <div x-show="showRecipeForm" class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="font-bold mb-4" x-text="editingRecipe ? translations.editRecipe : translations.addRecipe"></h3>
+                        
+                        <form @submit.prevent="saveRecipe">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" x-text="translations.recipeName"></label>
+                                    <input type="text" x-model="recipeForm.name" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" x-text="translations.category"></label>
+                                    <input type="text" x-model="recipeForm.category" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" x-text="translations.price"></label>
+                                    <input type="number" x-model="recipeForm.price" step="0.01" min="0" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" x-text="translations.basePortions"></label>
+                                    <input type="number" x-model="recipeForm.basePortions" min="1" required
+                                           class="w-full border rounded-lg px-3 py-2">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-1" x-text="translations.ingredients"></label>
+                                <div class="space-y-2">
+                                    <template x-for="(ingredient, index) in recipeForm.ingredients" :key="index">
+                                        <div class="flex gap-2">
+                                            <input type="text" x-model="ingredient.name" placeholder="Ingredient"
+                                                   class="flex-1 border rounded-lg px-3 py-2">
+                                            <input type="number" x-model="ingredient.quantity" step="0.01" min="0" placeholder="Qty"
+                                                   class="w-24 border rounded-lg px-3 py-2">
+                                            <input type="text" x-model="ingredient.unit" placeholder="Unit"
+                                                   class="w-24 border rounded-lg px-3 py-2">
+                                            <button type="button" @click="recipeForm.ingredients.splice(index, 1)"
+                                                    class="text-red-500">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                                <button type="button" @click="recipeForm.ingredients.push({name: '', quantity: 0, unit: ''})"
+                                        class="mt-2 text-sm text-primary">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    <span x-text="translations.addIngredient"></span>
+                                </button>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium mb-1" x-text="translations.instructions"></label>
+                                <textarea x-model="recipeForm.instructions" rows="4"
+                                          class="w-full border rounded-lg px-3 py-2"></textarea>
+                            </div>
+                            
+                            <div class="flex justify-end gap-3">
+                                <button type="button" @click="showRecipeForm = false"
+                                        class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                                    <span x-text="translations.cancel"></span>
+                                </button>
+                                <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                                    <span x-text="translations.saveRecipe"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Recipe Scaling Tool -->
+                    <div x-show="!showRecipeForm && selectedRecipe" class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="font-bold mb-4" x-text="selectedRecipe?.name || ''"></h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-1" x-text="translations.scaleToPortions"></label>
+                            <input type="number" x-model="scalePortions" min="1" 
+                                   class="w-32 border rounded-lg px-3 py-2">
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2" x-text="translations.ingredients"></label>
+                            <div class="bg-white border rounded-lg p-4">
+                                <template x-for="ingredient in selectedRecipe?.ingredients || []" :key="ingredient.name">
+                                    <div class="flex justify-between py-2 border-b last:border-b-0">
+                                        <div x-text="ingredient.name"></div>
+                                        <div>
+                                            <span x-text="calculateScaledQuantity(ingredient.quantity, scalePortions, selectedRecipe?.basePortions || 1)"></span>
+                                            <span x-text="ingredient.unit"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-2" x-text="translations.instructions"></label>
+                            <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
+                                 x-text="selectedRecipe?.instructions || ''"></div>
+                        </div>
+                    </div>
+                    
+                    <div x-show="!showRecipeForm && !selectedRecipe" class="text-center py-12 text-gray-500">
+                        <i class="fas fa-book-open text-4xl mb-4"></i>
+                        <p x-text="translations.selectRecipe"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Management -->
+        <div x-show="currentTab === 'tables'" class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
+                <i class="fas fa-chair"></i>
+                <span x-text="translations.tableManagement"></span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Table List -->
+                <div class="lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold" x-text="translations.tables"></h3>
+                        <button @click="addTable()"
+                                class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700 transition">
+                            <i class="fas fa-plus mr-1"></i>
+                            <span x-text="translations.addTable"></span>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <template x-for="table in tables" :key="table.id">
+                            <div class="bg-gray-50 border rounded-lg p-4 hover:shadow-md transition">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div class="font-bold text-lg" x-text="'Table ' + table.number"></div>
+                                        <div class="text-sm text-gray-600" x-text="table.capacity + ' seats'"></div>
+                                        <div x-show="table.location" class="text-xs text-gray-500" x-text="table.location"></div>
+                                        <div x-show="table.notes" class="text-xs text-gray-500 italic" x-text="table.notes"></div>
+                                    </div>
+                                    <div class="px-2 py-1 rounded-full text-xs" 
+                                         :class="getTableStatusColor(table.status)"
+                                         x-text="translations[table.status]"></div>
+                                </div>
+                                
+                                <!-- Table Stats -->
+                                <div class="mt-2 space-y-1 text-xs text-gray-600">
+                                    <div class="flex justify-between">
+                                        <span x-text="translations.revenue"></span>
+                                        <span x-text="formatPrice(getTableRevenue(table.number))"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span x-text="translations.averageOrderValue"></span>
+                                        <span x-text="formatPrice(getTableAverageOrder(table.number))"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span x-text="translations.occupancyTime"></span>
+                                        <span x-text="getTableOccupancyTime(table.number) + ' min'"></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3 space-y-2">
+                                    <div class="flex gap-1">
+                                        <button @click="editTable(table)"
+                                                class="flex-1 bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 transition">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button @click="selectedTable = table.number"
+                                                class="flex-1 bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button @click="deleteTable(table.id)"
+                                                class="flex-1 bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="flex gap-1">
+                                        <button x-show="table.status === 'available'" 
+                                                @click="makeReservation(table.id)"
+                                                class="flex-1 bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 transition">
+                                            <i class="fas fa-calendar mr-1"></i>
+                                            <span x-text="translations.makeReservation"></span>
+                                        </button>
+                                        <button x-show="table.status === 'reserved'" 
+                                                @click="cancelReservation(table.id)"
+                                                class="flex-1 bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600 transition">
+                                            <i class="fas fa-times mr-1"></i>
+                                            <span x-text="translations.cancelReservation"></span>
+                                        </button>
+                                        <button x-show="table.status === 'occupied'" 
+                                                @click="closeTable(table.number)"
+                                                class="flex-1 bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition">
+                                            <i class="fas fa-times mr-1"></i>
+                                            <span x-text="translations.closeTable"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Table Orders -->
+                <div>
+                    <div x-show="selectedTable" class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-bold mb-4" x-text="'Table ' + selectedTable + ' - ' + translations.tableOrders"></h3>
+                        
+                        <div class="space-y-3">
+                            <template x-for="order in getTableOrders(selectedTable)" :key="order.id">
+                                <div class="bg-white border rounded-lg p-3">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div class="font-bold" x-text="'Order #' + order.id"></div>
+                                            <div class="text-sm text-gray-600" x-text="formatDateTime(order.timestamp)"></div>
+                                        </div>
+                                        <div class="px-2 py-1 rounded-full text-xs" 
+                                             :class="{
+                                                 'bg-blue-100 text-blue-800': order.status === 'new',
+                                                 'bg-orange-100 text-orange-800': order.status === 'preparing',
+                                                 'bg-green-100 text-green-800': order.status === 'ready'
+                                             }"
+                                             x-text="translations[order.status]"></div>
+                                    </div>
+                                    
+                                    <div class="border-t pt-2">
+                                        <template x-for="item in order.items" :key="item.id">
+                                            <div class="flex justify-between text-sm py-1">
+                                                <div>
+                                                    <span x-text="item.quantity + '×'"></span>
+                                                    <span x-text="item.name"></span>
+                                                </div>
+                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <div class="mt-3 pt-2 border-t">
+                                        <div class="flex justify-between text-sm">
+                                            <span x-text="translations.total"></span>
+                                            <span class="font-bold" x-text="formatPrice(order.total)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="getTableOrders(selectedTable).length === 0">
+                                <div class="text-center text-gray-500 py-8">
+                                    <i class="fas fa-utensils text-2xl mb-2"></i>
+                                    <p x-text="translations.noNewOrders"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div x-show="!selectedTable" class="text-center py-12 text-gray-500">
+                        <i class="fas fa-chair text-4xl mb-4"></i>
+                        <p x-text="translations.selectTable"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div x-show="currentTab === 'reports'" class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
+                <i class="fas fa-chart-bar"></i>
+                <span x-text="translations.salesReport"></span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Daily Report -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-bold mb-4" x-text="translations.dailyReport"></h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span x-text="translations.totalSales"></span>
+                            <span class="font-bold" x-text="formatPrice(reports.dailySales.totalSales || 0)"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span x-text="translations.totalOrders"></span>
+                            <span class="font-bold" x-text="reports.dailySales.totalOrders || 0"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span x-text="translations.averageOrder"></span>
+                            <span class="font-bold" x-text="formatPrice(reports.dailySales.averageOrder || 0)"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Monthly Report -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-bold mb-4" x-text="translations.monthlyReport"></h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span x-text="translations.totalSales"></span>
+                            <span class="font-bold" x-text="formatPrice(reports.monthlySales.totalSales || 0)"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span x-text="translations.totalOrders"></span>
+                            <span class="font-bold" x-text="reports.monthlySales.totalOrders || 0"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span x-text="translations.averageOrder"></span>
+                            <span class="font-bold" x-text="formatPrice(reports.monthlySales.averageOrder || 0)"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Items -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-bold mb-4" x-text="translations.topItems"></h3>
+                    <div class="space-y-2">
+                        <template x-for="(item, index) in reports.topItems" :key="index">
+                            <div class="flex justify-between">
+                                <span x-text="(index + 1) + '. ' + item.name"></span>
+                                <span class="font-bold" x-text="item.quantity"></span>
+                            </div>
+                        </template>
+                        <template x-if="reports.topItems.length === 0">
+                            <div class="text-center text-gray-500 py-4" x-text="translations.noNewOrders"></div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Category Report -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-bold mb-4" x-text="translations.categoryReport"></h3>
+                    <div class="space-y-2">
+                        <template x-for="(category, index) in reports.categorySales" :key="index">
+                            <div class="flex justify-between">
+                                <span x-text="category.category"></span>
+                                <span class="font-bold" x-text="formatPrice(category.sales)"></span>
+                            </div>
+                        </template>
+                        <template x-if="reports.categorySales.length === 0">
+                            <div class="text-center text-gray-500 py-4" x-text="translations.noNewOrders"></div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-center">
+                <button @click="exportData()" 
+                        class="bg-primary text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition">
+                    <i class="fas fa-download mr-2"></i>
+                    <span x-text="translations.exportData"></span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div x-show="showSettings" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showSettings = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.settings"></h3>
+                <button @click="showSettings = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form @submit.prevent="saveSettings(); showSettings = false">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Restaurant Information -->
+                    <div>
+                        <h4 class="font-bold mb-3" x-text="translations.restaurantInfo"></h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.restaurantName"></label>
+                                <input type="text" x-model="settings.restaurantName" required
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.address"></label>
+                                <textarea x-model="settings.address" rows="2"
+                                          class="w-full border rounded-lg px-3 py-2"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.phone"></label>
+                                <input type="text" x-model="settings.phone"
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.email"></label>
+                                <input type="email" x-model="settings.email"
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.website"></label>
+                                <input type="text" x-model="settings.website"
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Receipt Settings -->
+                    <div>
+                        <h4 class="font-bold mb-3" x-text="translations.receiptSettings"></h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.taxRate"></label>
+                                <input type="number" x-model="settings.taxRate" min="0" max="100" step="0.1" required
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.deliveryFee"></label>
+                                <input type="number" x-model="settings.deliveryFee" min="0" step="0.01" required
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.currency"></label>
+                                <select x-model="settings.currency" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.receiptFooter"></label>
+                                <textarea x-model="settings.receiptFooter" rows="2"
+                                          class="w-full border rounded-lg px-3 py-2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Print Settings -->
+                    <div>
+                        <h4 class="font-bold mb-3" x-text="translations.printSettings"></h4>
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <input type="checkbox" x-model="settings.printHeader" id="printHeader"
+                                       class="mr-2">
+                                <label for="printHeader" class="text-sm" x-text="translations.printHeader"></label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" x-model="settings.printFooter" id="printFooter"
+                                       class="mr-2">
+                                <label for="printFooter" class="text-sm" x-text="translations.printFooter"></label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" x-model="settings.autoPrint" id="autoPrint"
+                                       class="mr-2">
+                                <label for="autoPrint" class="text-sm" x-text="translations.autoPrint"></label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.receiptWidth"></label>
+                                <input type="number" x-model="settings.receiptWidth" min="50" max="120" step="1"
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" x-text="translations.fontSize"></label>
+                                <input type="number" x-model="settings.fontSize" min="8" max="16" step="1"
+                                       class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showSettings = false"
+                            class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <span x-text="translations.cancel"></span>
+                    </button>
+                    <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                        <span x-text="translations.saveSettings"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div x-show="showReceipt" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showReceipt = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.receipt"></h3>
+                <button @click="showReceipt = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="receipt-preview mb-4 p-4 border rounded-lg bg-gray-50" 
+                 style="font-family: 'Courier New', monospace; font-size: 12px;">
+                <div x-html="generateReceiptHTML()"></div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button @click="showReceipt = false"
+                        class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                    <span x-text="translations.cancel"></span>
+                </button>
+                <button @click="printReceipt()" 
+                        class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                    <i class="fas fa-print mr-2"></i>
+                    <span x-text="translations.print"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Form Modal -->
+    <div x-show="showTableForm" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showTableForm = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="editingTable ? translations.editTable : translations.addTable"></h3>
+                <button @click="showTableForm = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form @submit.prevent="saveTable()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1" x-text="translations.tableNumber"></label>
+                        <input type="number" x-model="tableForm.number" min="1" required
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1" x-text="translations.capacity"></label>
+                        <input type="number" x-model="tableForm.capacity" min="1" max="20" required
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1" x-text="translations.location"></label>
+                        <input type="text" x-model="tableForm.location" placeholder="e.g., Window, Patio, Bar"
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1" x-text="translations.tableStatus"></label>
+                        <select x-model="tableForm.status" class="w-full border rounded-lg px-3 py-2">
+                            <option value="available" x-text="translations.available"></option>
+                            <option value="reserved" x-text="translations.reserved"></option>
+                            <option value="occupied" x-text="translations.occupied"></option>
+                            <option value="cleaning" x-text="translations.cleaning"></option>
+                            <option value="maintenance" x-text="translations.maintenance"></option>
+                        </select>
+                    </div>
+                    
+                    <div x-show="tableForm.status === 'reserved'">
+                        <label class="block text-sm font-medium mb-1" x-text="translations.customerName"></label>
+                        <input type="text" x-model="tableForm.customerName" placeholder="Customer name"
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div x-show="tableForm.status === 'reserved'">
+                        <label class="block text-sm font-medium mb-1" x-text="translations.customerPhone"></label>
+                        <input type="text" x-model="tableForm.customerPhone" placeholder="Customer phone"
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div x-show="tableForm.status === 'reserved'">
+                        <label class="block text-sm font-medium mb-1" x-text="translations.reservationTime"></label>
+                        <input type="datetime-local" x-model="tableForm.reservationTime"
+                               class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1" x-text="translations.notes"></label>
+                        <textarea x-model="tableForm.notes" rows="3" placeholder="Additional notes about the table"
+                                  class="w-full border rounded-lg px-3 py-2"></textarea>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showTableForm = false"
+                            class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <span x-text="translations.cancel"></span>
+                    </button>
+                    <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                        <span x-text="translations.saveRecipe"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Backup Modal -->
+    <div x-show="showBackup" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showBackup = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.backup"></h3>
+                <button @click="showBackup = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-bold mb-2" x-text="translations.exportBackup"></h4>
+                    <p class="text-sm text-gray-600 mb-3">Export all data including recipes, orders, tables, and settings.</p>
+                    <button @click="exportBackup()" 
+                            class="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">
+                        <i class="fas fa-download mr-2"></i>
+                        <span x-text="translations.exportBackup"></span>
+                    </button>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h4 class="font-bold mb-2" x-text="translations.importBackup"></h4>
+                    <p class="text-sm text-gray-600 mb-3">Import backup file to restore all data.</p>
+                    <input type="file" @change="importBackup($event)" accept=".json"
+                           class="w-full border rounded-lg px-3 py-2">
+                </div>
+            </div>
+            
+            <div class="flex justify-end mt-6">
+                <button @click="showBackup = false"
+                        class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                    <span x-text="translations.cancel"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio element for new order notification -->
+    <audio id="newOrderSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
+    </audio>
+</body>
+</html>

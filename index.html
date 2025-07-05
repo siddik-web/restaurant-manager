@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juice Bar POS | API Integrated</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        secondary: '#FF9800',
+                        accent: '#FF5722',
+                        background: '#F5F5F5',
+                        text: '#333333',
+                        dark: '#2E7D32',
+                        light: '#E8F5E9'
+                    }
+                }
+            }
+        }
+    </script>
+   <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e8f5e9 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .nav-tab {
+            padding: 14px 20px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .nav-tab:hover {
+            background-color: #e8f5e9;
+        }
+        .nav-tab.active {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: 600;
+        }
+        .setting-item {
+            border-bottom: 1px solid #eee;
+            padding: 18px 0;
+        }
+        .menu-item-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-item-card:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.1);
+        }
+        .icon-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: #e8f5e9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #4CAF50;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .category-chip {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #e8f5e9;
+            color: #2E7D32;
+        }
+        .scrollable-area {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .scrollable-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollable-area::-webkit-scrollbar-thumb {
+            background: #c8e6c9;
+            border-radius: 4px;
+        }
+        .scrollable-area::-webkit-scrollbar-track {
+            background: #f5f5f5;
+        }
+        .logo {
+            position: relative;
+            overflow: hidden;
+        }
+        .logo::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+        }
+        .order-item:hover {
+            background-color: #f8fff8;
+        }
+        .order-container {
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .receipt-container {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            font-family: monospace;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed #ccc;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        .receipt-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+        .receipt-footer {
+            border-top: 2px dashed #ccc;
+            padding-top: 15px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-receipt, #printable-receipt * {
+                visibility: visible;
+            }
+            #printable-receipt {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+        .api-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 100;
+        }
+        .api-connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .api-disconnected {
+            background-color: #F44336;
+            color: white;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="posSystem()" x-init="init()" class="flex flex-col min-h-screen">
+        <!-- API Status Indicator -->
+        <div class="api-status" :class="apiConnected ? 'api-connected' : 'api-disconnected'">
+            <span x-text="apiConnected ? 'API Connected' : 'API Disconnected'"></span>
+        </div>
+
+        <!-- Header -->
+        <header class="bg-white shadow-md">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="logo bg-green-500 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-glass-water text-white text-2xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-800">Fresh<span class="text-primary">Juice</span> POS</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-user text-secondary text-xl"></i>
+                        <span class="font-medium" x-text="currentUser"></span>
+                    </div>
+                    <button @click="showSettings = true" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-cog text-gray-600"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Menu Section -->
+                <div class="lg:col-span-2">
+                    <div class="card mb-6">
+                        <div class="px-6 py-4 bg-gray-50 flex justify-between items-center">
+                            <h2 class="text-xl font-bold text-gray-800">Menu</h2>
+                            <div class="flex space-x-2 overflow-x-auto">
+                                <template x-for="category in categories" :key="category">
+                                    <button 
+                                        @click="currentCategory = category" 
+                                        :class="{
+                                            'bg-primary text-white': currentCategory === category,
+                                            'bg-gray-200 text-gray-700': currentCategory !== category
+                                        }" 
+                                        class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
+                                    >
+                                        <span x-text="category"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6">
+                            <template x-if="loadingMenu">
+                                <div class="flex justify-center py-10">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="!loadingMenu && menu.length === 0">
+                                <div class="py-10 text-center text-gray-500">
+                                    <i class="fas fa-glass-water text-3xl mb-2"></i>
+                                    <p>No menu items found</p>
+                                    <p class="text-sm mt-1">Add items in settings</p>
+                                </div>
+                            </template>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" x-show="!loadingMenu && menu.length > 0">
+                                <template x-for="item in filteredMenu" :key="item.id">
+                                    <div 
+                                        @click="addToOrder(item)" 
+                                        class="menu-item-card cursor-pointer"
+                                    >
+                                        <div class="p-5 flex items-start">
+                                            <div class="icon-preview mr-4">
+                                                <i :class="item.icon || 'fas fa-glass-water'"></i>
+                                            </div>
+                                            <div class="flex-1">
+                                                <h3 class="font-bold text-lg" x-text="item.name"></h3>
+                                                <div class="flex justify-between items-center mt-2">
+                                                    <div>
+                                                        <span class="text-primary font-bold" x-text="formatCurrency(item.price)"></span>
+                                                        <div class="mt-1">
+                                                            <span class="category-chip" x-text="item.category || 'Uncategorized'"></span>
+                                                        </div>
+                                                    </div>
+                                                    <button class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200">
+                                                        <i class="fas fa-plus text-green-600"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Orders -->
+                    <div class="card">
+                        <div class="px-6 py-4 bg-gray-50 flex justify-between items-center">
+                            <h2 class="text-xl font-bold text-gray-800">Recent Orders</h2>
+                            <button @click="showAllOrders = !showAllOrders" class="text-primary hover:text-green-700">
+                                <span x-text="showAllOrders ? 'Show Less' : 'View All'"></span>
+                                <i :class="showAllOrders ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="ml-1"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6">
+                            <template x-if="loadingOrders">
+                                <div class="flex justify-center py-10">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="!loadingOrders && orderHistory.length === 0">
+                                <div class="py-6 text-center text-gray-500">
+                                    <i class="fas fa-receipt text-3xl mb-3"></i>
+                                    <p>No orders yet</p>
+                                </div>
+                            </template>
+                            
+                            <div class="overflow-x-auto" x-show="!loadingOrders && orderHistory.length > 0">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-500 text-sm">
+                                            <th class="py-3 px-4 text-left">Order ID</th>
+                                            <th class="py-3 px-4 text-left">Time</th>
+                                            <th class="py-3 px-4 text-left">Items</th>
+                                            <th class="py-3 px-4 text-left">Customer</th>
+                                            <th class="py-3 px-4 text-right">Total</th>
+                                            <th class="py-3 px-4 text-right">Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        <template x-for="order in (showAllOrders ? orderHistory : orderHistory.slice(0, 3))" :key="order.id">
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="py-3 px-4 font-medium" x-text="'#' + order.order_id"></td>
+                                                <td class="py-3 px-4 text-gray-500" x-text="new Date(order.created_at).toLocaleTimeString()"></td>
+                                                <td class="py-3 px-4" x-text="order.items.length + ' items'"></td>
+                                                <td class="py-3 px-4" x-text="order.customer_name || 'Walk-in'"></td>
+                                                <td class="py-3 px-4 text-right font-bold" x-text="formatCurrency(order.total)"></td>
+                                                <td class="py-3 px-4 text-right">
+                                                    <button 
+                                                        @click="openReceiptModal(order)"
+                                                        class="text-primary hover:text-green-700 px-2 py-1 rounded"
+                                                    >
+                                                        <i class="fas fa-receipt mr-1"></i> View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Order Section -->
+                <div>
+                    <div class="card sticky top-4">
+                        <div class="px-6 py-4 bg-primary text-white flex justify-between items-center">
+                            <h2 class="text-xl font-bold">Current Order</h2>
+                            <span class="text-sm" x-text="'#' + orderId"></span>
+                        </div>
+                        
+                        <div class="p-6">
+                            <div class="mb-4">
+                                <div class="flex justify-between text-sm text-gray-500 font-medium mb-2">
+                                    <span>Item</span>
+                                    <span>Total</span>
+                                </div>
+                                
+                                <div class="order-container max-h-64 overflow-y-auto pr-2">
+                                    <template x-for="(item, index) in currentOrder.items" :key="index">
+                                        <div class="order-item flex justify-between items-center py-3 border-b border-gray-100">
+                                            <div>
+                                                <div class="font-medium" x-text="item.name"></div>
+                                                <div class="flex items-center space-x-2 mt-1">
+                                                    <button 
+                                                        @click="updateQuantity(item, -1)"
+                                                        class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center"
+                                                    >
+                                                        <i class="fas fa-minus text-xs"></i>
+                                                    </button>
+                                                    <span class="font-medium" x-text="item.quantity"></span>
+                                                    <button 
+                                                        @click="updateQuantity(item, 1)"
+                                                        class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center"
+                                                    >
+                                                        <i class="fas fa-plus text-xs"></i>
+                                                    </button>
+                                                    <span class="text-sm text-gray-500 ml-2" x-text="formatCurrency(item.price)"></span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="font-bold" x-text="formatCurrency(item.price * item.quantity)"></span>
+                                                <button 
+                                                    @click="removeFromOrder(item)"
+                                                    class="text-red-500 hover:text-red-700"
+                                                >
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <template x-if="currentOrder.items.length === 0">
+                                        <div class="py-10 text-center text-gray-500">
+                                            <i class="fas fa-shopping-basket text-3xl mb-2"></i>
+                                            <p>No items in order</p>
+                                            <p class="text-sm mt-1">Add juices from the menu</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <!-- Order Summary -->
+                            <div class="space-y-2 border-t border-gray-200 pt-4">
+                                <div class="flex justify-between">
+                                    <span>Subtotal</span>
+                                    <span x-text="formatCurrency(currentOrder.subtotal)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Tax (<span x-text="taxRate"></span>%)</span>
+                                    <span x-text="formatCurrency(currentOrder.tax)"></span>
+                                </div>
+                                <div class="flex justify-between font-bold text-lg pt-2">
+                                    <span>Total</span>
+                                    <span x-text="formatCurrency(currentOrder.total)"></span>
+                                </div>
+                                
+                                <!-- Customer Info -->
+                                <div class="mt-4">
+                                    <label class="block text-gray-700 mb-2">Customer Name (Optional)</label>
+                                    <input 
+                                        type="text" 
+                                        x-model="customerName"
+                                        placeholder="Enter customer name"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                    >
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="mt-6 grid grid-cols-2 gap-3">
+                                <button 
+                                    @click="clearOrder"
+                                    :disabled="currentOrder.items.length === 0"
+                                    :class="{
+                                        'bg-gray-300 cursor-not-allowed': currentOrder.items.length === 0,
+                                        'bg-gray-500 hover:bg-gray-600': currentOrder.items.length > 0
+                                    }" 
+                                    class="text-white py-3 rounded-lg font-medium transition-colors"
+                                >
+                                    Clear
+                                </button>
+                                <button 
+                                    @click="completeOrder"
+                                    :disabled="currentOrder.items.length === 0 || processingOrder"
+                                    :class="{
+                                        'bg-gray-300 cursor-not-allowed': currentOrder.items.length === 0,
+                                        'bg-primary hover:bg-green-600': currentOrder.items.length > 0
+                                    }" 
+                                    class="text-white py-3 rounded-lg font-medium transition-colors flex justify-center items-center"
+                                >
+                                    <template x-if="processingOrder">
+                                        <div class="loading-spinner mr-2" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                                    </template>
+                                    <span>Complete Order</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Settings Modal -->
+        <div 
+            x-show="showSettings" 
+            x-cloak
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+            <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" @click.outside="showSettings = false">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">POS Settings</h3>
+                    <button @click="showSettings = false" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="flex flex-1 overflow-hidden">
+                    <!-- Settings Navigation -->
+                    <div class="w-64 bg-gray-50 p-4 border-r">
+                        <div class="space-y-1">
+                            <div 
+                                @click="settingsTab = 'api'"
+                                :class="{'active': settingsTab === 'api'}"
+                                class="nav-tab"
+                            >
+                                <i class="fas fa-plug mr-3"></i> API Connection
+                            </div>
+                            <div 
+                                @click="settingsTab = 'general'"
+                                :class="{'active': settingsTab === 'general'}"
+                                class="nav-tab"
+                            >
+                                <i class="fas fa-cog mr-3"></i> General Settings
+                            </div>
+                            <div 
+                                @click="settingsTab = 'menu'"
+                                :class="{'active': settingsTab === 'menu'}"
+                                class="nav-tab"
+                            >
+                                <i class="fas fa-utensils mr-3"></i> Menu Management
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings Content -->
+                    <div class="flex-1 p-6 scrollable-area">
+                        <!-- API Connection Settings -->
+                        <div x-show="settingsTab === 'api'">
+                            <h4 class="text-lg font-bold text-gray-800 mb-6">API Connection</h4>
+                            
+                            <div class="space-y-6">
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">API Base URL</label>
+                                    <input 
+                                        type="text" 
+                                        x-model="apiConfig.baseUrl"
+                                        placeholder="https://yourdomain.com/wp-json/juice-pos/v1"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveApiConfig"
+                                    >
+                                    <p class="text-sm text-gray-500 mt-2">Enter the base URL for your Juice POS API</p>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">API Key</label>
+                                    <input 
+                                        type="password" 
+                                        x-model="apiConfig.apiKey"
+                                        placeholder="Enter your API key"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveApiConfig"
+                                    >
+                                    <p class="text-sm text-gray-500 mt-2">Your API key for authentication</p>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <button 
+                                        @click="testApiConnection"
+                                        class="btn-primary"
+                                    >
+                                        <i class="fas fa-plug mr-2"></i> Test Connection
+                                    </button>
+                                    <div class="mt-4">
+                                        <template x-if="apiTestStatus === 'testing'">
+                                            <div class="flex items-center text-blue-600">
+                                                <div class="loading-spinner mr-2" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                                                <span>Testing connection...</span>
+                                            </div>
+                                        </template>
+                                        <template x-if="apiTestStatus === 'success'">
+                                            <div class="flex items-center text-green-600">
+                                                <i class="fas fa-check-circle mr-2"></i>
+                                                <span>Connection successful! API is working properly.</span>
+                                            </div>
+                                        </template>
+                                        <template x-if="apiTestStatus === 'error'">
+                                            <div class="flex items-center text-red-600">
+                                                <i class="fas fa-exclamation-circle mr-2"></i>
+                                                <span>Connection failed. Please check your settings.</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- General Settings -->
+                        <div x-show="settingsTab === 'general'">
+                            <h4 class="text-lg font-bold text-gray-800 mb-6">General Settings</h4>
+                            
+                            <div class="space-y-6">
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">Business Name</label>
+                                    <input 
+                                        type="text" 
+                                        x-model="businessName"
+                                        placeholder="Enter business name"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveSettings"
+                                    >
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">Business Address</label>
+                                    <textarea 
+                                        x-model="businessAddress"
+                                        placeholder="Enter business address"
+                                        rows="2"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveSettings"
+                                    ></textarea>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">Business Phone</label>
+                                    <input 
+                                        type="text" 
+                                        x-model="businessPhone"
+                                        placeholder="Enter business phone"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveSettings"
+                                    >
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">Tax Rate (%)</label>
+                                    <input 
+                                        type="number" 
+                                        x-model="taxRate"
+                                        min="0" 
+                                        max="30" 
+                                        step="0.1"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveSettings"
+                                    >
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label class="block text-gray-700 font-medium mb-2">Receipt Footer Message</label>
+                                    <textarea 
+                                        x-model="receiptMessage"
+                                        placeholder="Thank you for your business!"
+                                        rows="2"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        @change="saveSettings"
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Menu Management -->
+                        <div x-show="settingsTab === 'menu'">
+                            <div class="flex justify-between items-center mb-6">
+                                <h4 class="text-lg font-bold text-gray-800">Menu Management</h4>
+                                <button 
+                                    @click="addNewMenuItem"
+                                    class="btn-primary"
+                                >
+                                    <i class="fas fa-plus mr-2"></i> Add New Item
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <template x-for="(item, index) in menu" :key="item.id">
+                                    <div class="card p-5">
+                                        <div class="flex items-start">
+                                            <div class="icon-preview mr-4">
+                                                <i :class="item.icon || 'fas fa-glass-water'"></i>
+                                            </div>
+                                            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label class="block text-gray-700 mb-2">Item Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        x-model="item.name" 
+                                                        placeholder="Item name"
+                                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                                        @change="updateMenuItem(item)"
+                                                    >
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 mb-2">Price</label>
+                                                    <input 
+                                                        type="number" 
+                                                        x-model="item.price" 
+                                                        min="0" 
+                                                        step="0.01"
+                                                        placeholder="Price"
+                                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                                        @change="updateMenuItem(item)"
+                                                    >
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 mb-2">Category</label>
+                                                    <select x-model="item.category" class="w-full px-4 py-2 border border-gray-300 rounded-lg" @change="updateMenuItem(item)">
+                                                        <option value="Fruit">Fruit</option>
+                                                        <option value="Vegetable">Vegetable</option>
+                                                        <option value="Smoothie">Smoothie</option>
+                                                        <option value="Specialty">Specialty</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 mb-2">Icon Class</label>
+                                                    <div class="flex">
+                                                        <input 
+                                                            type="text" 
+                                                            x-model="item.icon" 
+                                                            placeholder="fas fa-icon"
+                                                            class="w-full px-4 py-2 border border-gray-300 rounded-l-lg"
+                                                            @change="updateMenuItem(item)"
+                                                        >
+                                                        <button 
+                                                            class="px-4 bg-gray-100 border-t border-r border-b border-gray-300 rounded-r-lg"
+                                                        >
+                                                            <i class="fas fa-icons"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                @click="deleteMenuItem(item)"
+                                                class="ml-4 text-red-500 hover:text-red-700 mt-2"
+                                            >
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="px-6 py-4 bg-gray-50 border-t flex justify-center">
+                    <button 
+                        @click="showSettings = false"
+                        class="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Receipt Modal -->
+        <div 
+            x-show="showReceiptModal" 
+            x-cloak
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+            <div class="bg-white rounded-xl w-full max-w-md" @click.outside="showReceiptModal = false">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h3 class="text-xl font-bold">Order Receipt</h3>
+                    <div class="flex space-x-2">
+                        <button 
+                            @click="printReceipt()"
+                            class="px-3 py-1 bg-primary text-white rounded text-sm font-medium"
+                        >
+                            <i class="fas fa-print mr-1"></i> Print
+                        </button>
+                        <button @click="showReceiptModal = false" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Printable Receipt -->
+                <template x-if="currentReceiptOrder">
+                    <div id="printable-receipt" class="p-6">
+                        <div class="receipt-container mx-auto">
+                            <div class="receipt-header">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-1" x-text="businessName"></h2>
+                                <p class="text-sm text-gray-600" x-text="businessAddress"></p>
+                                <p class="text-sm text-gray-600" x-text="businessPhone"></p>
+                                <p class="text-sm text-gray-600 mt-2" x-text="'Order #' + currentReceiptOrder.order_id"></p>
+                                <p class="text-sm text-gray-600" x-text="new Date(currentReceiptOrder.created_at).toLocaleString()"></p>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between font-semibold mb-1">
+                                    <span>Staff:</span>
+                                    <span x-text="currentUser"></span>
+                                </div>
+                                <div class="flex justify-between font-semibold">
+                                    <span>Customer:</span>
+                                    <span x-text="currentReceiptOrder.customer_name || 'Walk-in'"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="text-center font-semibold mb-2">--- Items ---</div>
+                                <template x-for="item in currentReceiptOrder.items" :key="item.id">
+                                    <div class="receipt-item">
+                                        <div>
+                                            <span x-text="item.quantity + ' x ' + item.name"></span>
+                                        </div>
+                                        <div x-text="formatCurrency(item.price * item.quantity)"></div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="receipt-footer">
+                                <div class="receipt-item font-semibold">
+                                    <span>Subtotal:</span>
+                                    <span x-text="formatCurrency(currentReceiptOrder.subtotal)"></span>
+                                </div>
+                                <div class="receipt-item">
+                                    <span>Tax (<span x-text="taxRate"></span>%):</span>
+                                    <span x-text="formatCurrency(currentReceiptOrder.tax)"></span>
+                                </div>
+                                <div class="receipt-item font-bold text-lg mt-2">
+                                    <span>TOTAL:</span>
+                                    <span x-text="formatCurrency(currentReceiptOrder.total)"></span>
+                                </div>
+                                <div class="mt-4 text-sm text-gray-600">
+                                    <p x-text="receiptMessage"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <div class="px-6 py-4 bg-gray-50 flex justify-center">
+                    <button 
+                        @click="showReceiptModal = false"
+                        class="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Complete Notification -->
+        <div 
+            x-show="showOrderSuccess" 
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform translate-y-4"
+            x-transition:enter-end="opacity-100 transform translate-y-0"
+            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave-start="opacity-100 transform translate-y-0"
+            x-transition:leave-end="opacity-0 transform translate-y-4"
+            class="fixed bottom-4 left-4 bg-green-500 text-white rounded-lg shadow-lg p-4 max-w-sm z-50"
+        >
+            <div class="flex items-start space-x-3">
+                <i class="fas fa-check-circle text-xl mt-0.5"></i>
+                <div>
+                    <h4 class="font-bold">Order Completed!</h4>
+                    <p class="text-sm" x-text="'Order #' + completedOrderId + ' has been processed'"></p>
+                    <p class="text-sm" x-text="'Total: ' + formatCurrency(completedOrderTotal)"></p>
+                    <button 
+                        @click="openReceiptModal(completedOrder)"
+                        class="mt-2 px-3 py-1 bg-white text-green-600 rounded text-sm font-medium"
+                    >
+                        <i class="fas fa-receipt mr-1"></i> View Receipt
+                    </button>
+                </div>
+                <button @click="showOrderSuccess = false" class="ml-4">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+<script>
+        function posSystem() {
+    return {
+        // State
+        menu: [],
+        currentCategory: 'All',
+        categories: ['All', 'Fruit', 'Vegetable', 'Smoothie', 'Specialty'],
+        currentOrder: {
+            items: [],
+            subtotal: 0,
+            tax: 0,
+            total: 0
+        },
+        orderId: 'ORD' + Date.now(),
+        orderHistory: [],
+        taxRate: 8.5,
+        currentUser: 'Cashier',
+        customerName: '',
+        showSettings: false,
+        settingsTab: 'api',
+        showOrderSuccess: false,
+        showAllOrders: false,
+        showReceiptModal: false,
+        businessName: "FreshJuice Bar",
+        businessAddress: "123 Juice Street, Beverage City",
+        businessPhone: "(555) 123-4567",
+        receiptMessage: "Thank you for your order! Visit us again soon!",
+        completedOrderId: null,
+        completedOrderTotal: 0,
+        completedOrder: null,
+        currentReceiptOrder: null,
+        apiConnected: false,
+        apiConfig: {
+            baseUrl: '',
+            apiKey: ''
+        },
+        apiTestStatus: '',
+        loadingMenu: true,
+        loadingOrders: true,
+        processingOrder: false,
+
+        // Init
+        async init() {
+            this.loadConfig();
+            this.loadSettings();
+            await this.checkApiConnection();
+            if (this.apiConnected) {
+                await this.fetchMenu();
+                await this.fetchOrders();
+            } else {
+                this.loadingMenu = false;
+                this.loadingOrders = false;
+            }
+        },
+
+        // Filtered menu method (for x-for="item in filteredMenu()")
+        filteredMenu() {
+            if (this.currentCategory === 'All') {
+                return this.menu;
+            }
+            return this.menu.filter(item => item.category === this.currentCategory);
+        },
+
+        // API methods
+        async checkApiConnection() {
+            if (!this.apiConfig.baseUrl || !this.apiConfig.apiKey) {
+                this.apiConnected = false;
+                return;
+            }
+
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/settings', {
+                    method: 'HEAD',
+                    headers: { 'X-API-Key': this.apiConfig.apiKey }
+                });
+                this.apiConnected = response.ok;
+            } catch (error) {
+                this.apiConnected = false;
+            }
+        },
+
+        async testApiConnection() {
+            this.apiTestStatus = 'testing';
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/settings', {
+                    method: 'HEAD',
+                    headers: { 'X-API-Key': this.apiConfig.apiKey }
+                });
+                if (response.ok) {
+                    this.apiTestStatus = 'success';
+                    this.apiConnected = true;
+                    await this.fetchMenu();
+                    await this.fetchOrders();
+                } else {
+                    this.apiTestStatus = 'error';
+                    this.apiConnected = false;
+                }
+            } catch (error) {
+                this.apiTestStatus = 'error';
+                this.apiConnected = false;
+            }
+        },
+
+        async fetchMenu() {
+            if (!this.apiConnected) return;
+            this.loadingMenu = true;
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/menu', {
+                    headers: { 'X-API-Key': this.apiConfig.apiKey }
+                });
+                if (response.ok) {
+                    this.menu = await response.json();
+                }
+            } catch (error) {
+                console.error('Failed to fetch menu:', error);
+            }
+            this.loadingMenu = false;
+        },
+
+        async fetchOrders() {
+            if (!this.apiConnected) return;
+            this.loadingOrders = true;
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/orders?limit=10', {
+                    headers: { 'X-API-Key': this.apiConfig.apiKey }
+                });
+                if (response.ok) {
+                    const orders = await response.json();
+                    this.orderHistory = orders.map(order => ({
+                        ...order,
+                        items: order.items
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch orders:', error);
+            }
+            this.loadingOrders = false;
+        },
+
+        async createOrder() {
+            if (!this.apiConnected) return;
+            this.processingOrder = true;
+            try {
+                const orderData = {
+                    items: this.currentOrder.items,
+                    subtotal: this.currentOrder.subtotal,
+                    tax: this.currentOrder.tax,
+                    total: this.currentOrder.total,
+                    customer_name: this.customerName
+                };
+                const response = await fetch(this.apiConfig.baseUrl + '/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': this.apiConfig.apiKey
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    throw new Error('Failed to create order');
+                }
+            } catch (error) {
+                console.error('Order creation failed:', error);
+                return null;
+            } finally {
+                this.processingOrder = false;
+            }
+        },
+
+        async updateMenuItem(item) {
+            if (!this.apiConnected) return;
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/menu/' + item.id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': this.apiConfig.apiKey
+                    },
+                    body: JSON.stringify(item)
+                });
+                if (!response.ok) console.error('Failed to update menu item');
+            } catch (error) {
+                console.error('Error updating menu item:', error);
+            }
+        },
+
+        async deleteMenuItem(item) {
+            if (!this.apiConnected) return;
+            if (!confirm('Are you sure you want to delete this menu item?')) return;
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/menu/' + item.id, {
+                    method: 'DELETE',
+                    headers: { 'X-API-Key': this.apiConfig.apiKey }
+                });
+                if (response.ok) {
+                    this.menu = this.menu.filter(m => m.id !== item.id);
+                } else {
+                    console.error('Failed to delete menu item');
+                }
+            } catch (error) {
+                console.error('Error deleting menu item:', error);
+            }
+        },
+
+        async addNewMenuItem() {
+            if (!this.apiConnected) return;
+            const newItem = {
+                name: "New Juice",
+                price: 4.99,
+                category: "Fruit",
+                icon: "fas fa-glass-water"
+            };
+            try {
+                const response = await fetch(this.apiConfig.baseUrl + '/menu', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': this.apiConfig.apiKey
+                    },
+                    body: JSON.stringify(newItem)
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    this.menu.push({ id: result.id, ...newItem });
+                } else {
+                    console.error('Failed to create menu item');
+                }
+            } catch (error) {
+                console.error('Error creating menu item:', error);
+            }
+        },
+
+        // Order functions
+        addToOrder(item) {
+            const itemToAdd = {...item};
+            const existingItem = this.currentOrder.items.find(i => i.id === itemToAdd.id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                this.currentOrder.items.push({ ...itemToAdd, quantity: 1 });
+            }
+            this.calculateOrderTotal();
+        },
+
+        removeFromOrder(item) {
+            this.currentOrder.items = this.currentOrder.items.filter(i => i.id !== item.id);
+            this.calculateOrderTotal();
+        },
+
+        updateQuantity(item, change) {
+            const existingItem = this.currentOrder.items.find(i => i.id === item.id);
+            if (!existingItem) return;
+            const newQuantity = existingItem.quantity + change;
+            if (newQuantity > 0) {
+                existingItem.quantity = newQuantity;
+            } else {
+                this.removeFromOrder(item);
+            }
+            this.calculateOrderTotal();
+        },
+
+        calculateOrderTotal() {
+            this.currentOrder.subtotal = this.currentOrder.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+            this.currentOrder.tax = parseFloat((this.currentOrder.subtotal * (this.taxRate / 100)).toFixed(2));
+            this.currentOrder.total = parseFloat((this.currentOrder.subtotal + this.currentOrder.tax).toFixed(2));
+        },
+
+        clearOrder() {
+            this.currentOrder = {
+                items: [],
+                subtotal: 0,
+                tax: 0,
+                total: 0
+            };
+            this.customerName = '';
+        },
+
+        async completeOrder() {
+            if (this.currentOrder.items.length === 0) return;
+            const result = await this.createOrder();
+            if (result) {
+                const completedOrder = {
+                    order_id: result.order_id,
+                    items: [...this.currentOrder.items],
+                    subtotal: this.currentOrder.subtotal,
+                    tax: this.currentOrder.tax,
+                    total: this.currentOrder.total,
+                    customer_name: this.customerName || "Walk-in",
+                    created_at: new Date().toISOString()
+                };
+                this.orderHistory.unshift(completedOrder);
+                this.completedOrderId = result.order_id;
+                this.completedOrderTotal = this.currentOrder.total;
+                this.completedOrder = completedOrder;
+                this.showOrderSuccess = true;
+                this.orderId = 'ORD' + Date.now();
+                this.clearOrder();
+                setTimeout(() => {
+                    this.showOrderSuccess = false;
+                }, 5000);
+            }
+        },
+
+        openReceiptModal(order) {
+            this.currentReceiptOrder = order;
+            this.showReceiptModal = true;
+        },
+
+        printReceipt() {
+            window.print();
+        },
+
+        // Settings
+        loadConfig() {
+            const savedConfig = localStorage.getItem('juice_pos_api_config');
+            if (savedConfig) {
+                this.apiConfig = JSON.parse(savedConfig);
+            }
+        },
+
+        saveApiConfig() {
+            localStorage.setItem('juice_pos_api_config', JSON.stringify(this.apiConfig));
+        },
+
+        loadSettings() {
+            const savedSettings = localStorage.getItem('juice_pos_settings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                this.businessName = settings.businessName || "FreshJuice Bar";
+                this.businessAddress = settings.businessAddress || "123 Juice Street, Beverage City";
+                this.businessPhone = settings.businessPhone || "(555) 123-4567";
+                this.taxRate = settings.taxRate || 8.5;
+                this.receiptMessage = settings.receiptMessage || "Thank you for your order! Visit us again soon!";
+                this.currentUser = settings.currentUser || 'Cashier';
+            }
+        },
+
+        saveSettings() {
+            const settings = {
+                businessName: this.businessName,
+                businessAddress: this.businessAddress,
+                businessPhone: this.businessPhone,
+                taxRate: this.taxRate,
+                receiptMessage: this.receiptMessage,
+                currentUser: this.currentUser
+            };
+            localStorage.setItem('juice_pos_settings', JSON.stringify(settings));
+        },
+
+        formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(value);
+        }
+    };
+}
+
+    </script>
+</body>
+</html>
