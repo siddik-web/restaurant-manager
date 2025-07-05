@@ -1,0 +1,1 @@
+// No edit needed here; CORS is handled in config/cors.php 
