@@ -356,6 +356,7 @@ document.addEventListener('alpine:init', () => {
             generateReport: 'Generate Report',
             totalSales: 'Total Sales',
             totalOrders: 'Total Orders',
+            completedOrders: 'Completed Orders',
             averageOrder: 'Average Order',
             
             // Backup & Settings
@@ -499,6 +500,7 @@ document.addEventListener('alpine:init', () => {
             generateReport: 'إنشاء تقرير',
             totalSales: 'إجمالي المبيعات',
             totalOrders: 'إجمالي الطلبات',
+            completedOrders: 'الطلبات المكتملة',
             averageOrder: 'متوسط الطلب',
             
             // Backup & Settings
@@ -901,6 +903,7 @@ document.addEventListener('alpine:init', () => {
                     generateReport: 'Generate Report',
                     totalSales: 'Total Sales',
                     totalOrders: 'Total Orders',
+                    completedOrders: 'Completed Orders',
                     averageOrder: 'Average Order',
                     
                     // Backup & Settings
@@ -1070,8 +1073,12 @@ document.addEventListener('alpine:init', () => {
         },
         
         completeOrder(orderId) {
-            this.orders = this.orders.filter(o => o.id !== orderId);
-            this.saveOrders();
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'completed';
+                order.completedTime = Date.now();
+                this.saveOrders();
+            }
         },
         
         // Enhanced KDS Functions
@@ -1208,20 +1215,41 @@ document.addEventListener('alpine:init', () => {
             });
             
             const completedOrders = todayOrders.filter(order => order.status === 'completed');
-            const avgPrepTime = completedOrders.length > 0 ? 
-                completedOrders.reduce((sum, order) => {
-                    const prepTime = order.completedTime ? 
-                        (order.completedTime - order.timestamp) / (1000 * 60) : 0;
-                    return sum + prepTime;
-                }, 0) / completedOrders.length : 0;
+            const pendingOrders = todayOrders.filter(order => ['new', 'preparing', 'ready'].includes(order.status));
+            
+            // Calculate average prep time for completed orders
+            let avgPrepTime = 0;
+            if (completedOrders.length > 0) {
+                const totalPrepTime = completedOrders.reduce((sum, order) => {
+                    if (order.completedTime && order.timestamp) {
+                        const prepTime = (order.completedTime - order.timestamp) / (1000 * 60); // Convert to minutes
+                        return sum + prepTime;
+                    }
+                    return sum;
+                }, 0);
+                avgPrepTime = totalPrepTime / completedOrders.length;
+            }
+            
+            // Calculate efficiency based on on-time completion
+            let efficiency = 0;
+            if (completedOrders.length > 0) {
+                const onTimeOrders = completedOrders.filter(order => {
+                    if (order.completedTime && order.timestamp) {
+                        const actualPrepTime = (order.completedTime - order.timestamp) / (1000 * 60);
+                        const estimatedPrepTime = this.getEstimatedPrepTime(order);
+                        return actualPrepTime <= estimatedPrepTime;
+                    }
+                    return false;
+                });
+                efficiency = (onTimeOrders.length / completedOrders.length) * 100;
+            }
             
             return {
                 totalOrders: todayOrders.length,
                 completedOrders: completedOrders.length,
-                pendingOrders: todayOrders.filter(o => ['new', 'preparing'].includes(o.status)).length,
+                pendingOrders: pendingOrders.length,
                 avgPrepTime: Math.round(avgPrepTime),
-                efficiency: completedOrders.length > 0 ? 
-                    Math.round((completedOrders.length / todayOrders.length) * 100) : 0
+                efficiency: Math.round(efficiency)
             };
         },
         
@@ -1686,6 +1714,8 @@ document.addEventListener('alpine:init', () => {
             this.generateMonthlyReport();
             this.generateTopItems();
             this.generateCategoryReport();
+            this.generateOrderTypeReport();
+            this.generateHourlyReport();
         },
         
         generateDailyReport() {
@@ -1694,12 +1724,22 @@ document.addEventListener('alpine:init', () => {
                 new Date(order.timestamp).toDateString() === today
             );
             
+            const completedOrders = todayOrders.filter(order => order.status === 'completed');
+            const totalSales = todayOrders.reduce((sum, order) => sum + order.total, 0);
+            const totalTax = todayOrders.reduce((sum, order) => sum + order.tax, 0);
+            const totalDeliveryFees = todayOrders.filter(order => order.type === 'delivery')
+                .reduce((sum, order) => sum + order.deliveryFee, 0);
+            
             this.reports.dailySales = {
                 date: today,
-                totalSales: todayOrders.reduce((sum, order) => sum + order.total, 0),
+                totalSales: totalSales,
                 totalOrders: todayOrders.length,
-                averageOrder: todayOrders.length > 0 ? 
-                    todayOrders.reduce((sum, order) => sum + order.total, 0) / todayOrders.length : 0
+                completedOrders: completedOrders.length,
+                averageOrder: todayOrders.length > 0 ? totalSales / todayOrders.length : 0,
+                totalTax: totalTax,
+                totalDeliveryFees: totalDeliveryFees,
+                netSales: totalSales - totalTax - totalDeliveryFees,
+                completionRate: todayOrders.length > 0 ? (completedOrders.length / todayOrders.length) * 100 : 0
             };
         },
         
@@ -1711,50 +1751,135 @@ document.addEventListener('alpine:init', () => {
                 return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
             });
             
+            const completedOrders = monthOrders.filter(order => order.status === 'completed');
+            const totalSales = monthOrders.reduce((sum, order) => sum + order.total, 0);
+            const totalTax = monthOrders.reduce((sum, order) => sum + order.tax, 0);
+            const totalDeliveryFees = monthOrders.filter(order => order.type === 'delivery')
+                .reduce((sum, order) => sum + order.deliveryFee, 0);
+            
             this.reports.monthlySales = {
                 month: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-                totalSales: monthOrders.reduce((sum, order) => sum + order.total, 0),
+                totalSales: totalSales,
                 totalOrders: monthOrders.length,
-                averageOrder: monthOrders.length > 0 ? 
-                    monthOrders.reduce((sum, order) => sum + order.total, 0) / monthOrders.length : 0
+                completedOrders: completedOrders.length,
+                averageOrder: monthOrders.length > 0 ? totalSales / monthOrders.length : 0,
+                totalTax: totalTax,
+                totalDeliveryFees: totalDeliveryFees,
+                netSales: totalSales - totalTax - totalDeliveryFees,
+                completionRate: monthOrders.length > 0 ? (completedOrders.length / monthOrders.length) * 100 : 0,
+                averageDailySales: monthOrders.length > 0 ? totalSales / new Date(currentYear, currentMonth + 1, 0).getDate() : 0
             };
         },
         
         generateTopItems() {
-            const itemCounts = {};
+            const itemStats = {};
+            
             this.orders.forEach(order => {
                 order.items.forEach(item => {
-                    if (itemCounts[item.name]) {
-                        itemCounts[item.name] += item.quantity;
-                    } else {
-                        itemCounts[item.name] = item.quantity;
+                    if (!itemStats[item.name]) {
+                        itemStats[item.name] = {
+                            name: item.name,
+                            quantity: 0,
+                            revenue: 0,
+                            orders: 0
+                        };
                     }
+                    itemStats[item.name].quantity += item.quantity;
+                    itemStats[item.name].revenue += item.price * item.quantity;
+                    itemStats[item.name].orders += 1;
                 });
             });
             
-            this.reports.topItems = Object.entries(itemCounts)
-                .map(([name, quantity]) => ({ name, quantity }))
+            this.reports.topItems = Object.values(itemStats)
                 .sort((a, b) => b.quantity - a.quantity)
-                .slice(0, 10);
+                .slice(0, 10)
+                .map(item => ({
+                    ...item,
+                    averagePrice: item.quantity > 0 ? item.revenue / item.quantity : 0
+                }));
         },
         
         generateCategoryReport() {
-            const categorySales = {};
+            const categoryStats = {};
+            
             this.orders.forEach(order => {
                 order.items.forEach(item => {
                     const recipe = this.recipes.find(r => r.id === item.id);
                     if (recipe) {
-                        if (categorySales[recipe.category]) {
-                            categorySales[recipe.category] += item.price * item.quantity;
-                        } else {
-                            categorySales[recipe.category] = item.price * item.quantity;
+                        if (!categoryStats[recipe.category]) {
+                            categoryStats[recipe.category] = {
+                                category: recipe.category,
+                                sales: 0,
+                                quantity: 0,
+                                orders: 0
+                            };
                         }
+                        categoryStats[recipe.category].sales += item.price * item.quantity;
+                        categoryStats[recipe.category].quantity += item.quantity;
+                        categoryStats[recipe.category].orders += 1;
                     }
                 });
             });
             
-            this.reports.categorySales = Object.entries(categorySales)
-                .map(([category, sales]) => ({ category, sales }))
+            this.reports.categorySales = Object.values(categoryStats)
+                .sort((a, b) => b.sales - a.sales)
+                .map(cat => ({
+                    ...cat,
+                    averageOrderValue: cat.orders > 0 ? cat.sales / cat.orders : 0
+                }));
+        },
+        
+        generateOrderTypeReport() {
+            const typeStats = {};
+            
+            this.orders.forEach(order => {
+                if (!typeStats[order.type]) {
+                    typeStats[order.type] = {
+                        type: order.type,
+                        orders: 0,
+                        sales: 0,
+                        averageOrder: 0
+                    };
+                }
+                typeStats[order.type].orders += 1;
+                typeStats[order.type].sales += order.total;
+            });
+            
+            // Calculate averages
+            Object.values(typeStats).forEach(stat => {
+                stat.averageOrder = stat.orders > 0 ? stat.sales / stat.orders : 0;
+            });
+            
+            this.reports.orderTypeSales = Object.values(typeStats)
+                .sort((a, b) => b.sales - a.sales);
+        },
+        
+        generateHourlyReport() {
+            const hourlyStats = {};
+            
+            // Initialize all hours
+            for (let i = 0; i < 24; i++) {
+                hourlyStats[i] = {
+                    hour: i,
+                    orders: 0,
+                    sales: 0,
+                    averageOrder: 0
+                };
+            }
+            
+            this.orders.forEach(order => {
+                const hour = new Date(order.timestamp).getHours();
+                hourlyStats[hour].orders += 1;
+                hourlyStats[hour].sales += order.total;
+            });
+            
+            // Calculate averages
+            Object.values(hourlyStats).forEach(stat => {
+                stat.averageOrder = stat.orders > 0 ? stat.sales / stat.orders : 0;
+            });
+            
+            this.reports.hourlySales = Object.values(hourlyStats)
+                .filter(stat => stat.orders > 0) // Only show hours with orders
                 .sort((a, b) => b.sales - a.sales);
         },
         
