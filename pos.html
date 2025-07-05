@@ -249,170 +249,309 @@
             </div>
         </div>
 
-        <!-- Kitchen Display System -->
+        <!-- Enhanced Kitchen Display System -->
         <div x-show="currentTab === 'kds'" class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
-                <i class="fas fa-tv"></i>
-                <span x-text="translations.kds"></span>
-            </h2>
+            <!-- KDS Header with Controls -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-primary flex items-center gap-2">
+                    <i class="fas fa-tv"></i>
+                    <span x-text="translations.kds"></span>
+                </h2>
+                
+                <div class="flex gap-2">
+                    <!-- KDS Controls -->
+                    <div class="flex gap-2">
+                        <select x-model="kdsView" class="border rounded-lg px-3 py-1 text-sm">
+                            <option value="all" x-text="'All Orders'"></option>
+                            <option value="new" x-text="translations.newOrders"></option>
+                            <option value="preparing" x-text="translations.preparing"></option>
+                            <option value="ready" x-text="translations.ready"></option>
+                        </select>
+                        
+                        <select x-model="kdsFilter" class="border rounded-lg px-3 py-1 text-sm">
+                            <option value="all" x-text="'All Types'"></option>
+                            <option value="dine-in" x-text="translations.dineIn"></option>
+                            <option value="takeaway" x-text="translations.takeaway"></option>
+                            <option value="delivery" x-text="translations.delivery"></option>
+                        </select>
+                        
+                        <select x-model="kdsSort" class="border rounded-lg px-3 py-1 text-sm">
+                            <option value="time" x-text="'By Time'"></option>
+                            <option value="priority" x-text="'By Priority'"></option>
+                            <option value="table" x-text="'By Table'"></option>
+                        </select>
+                    </div>
+                    
+                    <button @click="showKdsSettings = true" 
+                            class="bg-gray-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-gray-600 transition">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Kitchen Statistics -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-blue-600" x-text="getKitchenStats().totalOrders"></div>
+                    <div class="text-sm text-blue-800" x-text="'Total Orders'"></div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-green-600" x-text="getKitchenStats().completedOrders"></div>
+                    <div class="text-sm text-green-800" x-text="'Completed'"></div>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-orange-600" x-text="getKitchenStats().pendingOrders"></div>
+                    <div class="text-sm text-orange-800" x-text="'Pending'"></div>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-purple-600" x-text="getKitchenStats().avgPrepTime + 'm'"></div>
+                    <div class="text-sm text-purple-800" x-text="'Avg Prep Time'"></div>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-teal-600" x-text="getKitchenStats().efficiency + '%'"></div>
+                    <div class="text-sm text-teal-800" x-text="'Efficiency'"></div>
+                </div>
+            </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Order Status Columns -->
+                <!-- New Orders -->
                 <div>
                     <h3 class="text-lg font-bold mb-4 text-center bg-blue-100 py-2 rounded">
                         <i class="fas fa-bell mr-2"></i>
                         <span x-text="translations.newOrders"></span>
+                        <span class="ml-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs" 
+                              x-text="getFilteredOrders().filter(o => o.status === 'new').length"></span>
                     </h3>
                     
-                    <div class="space-y-4">
-                        <template x-for="order in orders" :key="order.id">
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        <template x-for="order in getFilteredOrders()" :key="order.id">
                             <template x-if="order.status === 'new'">
-                                <div class="bg-white border border-blue-200 rounded-lg p-4 shadow">
-                                    <div class="flex justify-between items-start mb-2">
+                                <div class="bg-white border rounded-lg p-4 shadow-lg" 
+                                     :class="getOrderStatusColor(order)">
+                                    <!-- Order Header -->
+                                    <div class="flex justify-between items-start mb-3">
                                         <div>
-                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="font-bold text-lg" x-text="'#' + order.id"></div>
+                                                <div x-show="order.urgent" class="bg-red-500 text-white px-2 py-1 rounded-full text-xs animate-pulse">
+                                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                    <span x-text="translations.kdsUrgent"></span>
+                                                </div>
+                                            </div>
                                             <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
-                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                            <div x-show="order.tableNumber" class="text-xs" x-text="'Table ' + order.tableNumber"></div>
+                                            <div class="text-xs font-bold" x-text="'Age: ' + getOrderAgeText(order)"></div>
                                         </div>
-                                        <div class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                            <span x-text="translations[order.type]"></span>
+                                        <div class="text-right">
+                                            <div class="px-2 py-1 rounded-full text-xs mb-1" 
+                                                 :class="{
+                                                     'bg-blue-100 text-blue-800': order.type === 'dine-in',
+                                                     'bg-green-100 text-green-800': order.type === 'takeaway',
+                                                     'bg-red-100 text-red-800': order.type === 'delivery'
+                                                 }"
+                                                 x-text="translations[order.type]"></div>
+                                            <div class="text-xs" x-text="'Est: ' + getEstimatedPrepTime(order) + 'm'"></div>
                                         </div>
                                     </div>
                                     
-                                    <div class="border-t pt-2 mt-2">
+                                    <!-- Order Items -->
+                                    <div class="border-t pt-3 mb-3">
                                         <template x-for="item in order.items" :key="item.id">
                                             <div class="flex justify-between text-sm py-1">
-                                                <div>
-                                                    <span x-text="item.quantity + '×'"></span>
+                                                <div class="flex items-center">
+                                                    <span class="font-bold mr-2" x-text="item.quantity + '×'"></span>
                                                     <span x-text="item.name"></span>
                                                 </div>
-                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                                <div class="text-xs text-gray-600" x-text="formatPrice(item.price * item.quantity)"></div>
                                             </div>
                                         </template>
                                     </div>
                                     
-                                    <div class="mt-4 flex justify-end">
-                                        <button @click="updateOrderStatus(order.id, 'preparing')"
-                                                class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
-                                            <i class="fas fa-play mr-1"></i>
-                                            <span x-text="translations.startPreparing"></span>
-                                        </button>
+                                    <!-- Order Actions -->
+                                    <div class="flex justify-between items-center">
+                                        <div class="text-xs">
+                                            <span x-text="'Priority: ' + getOrderPriority(order)"></span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="generateReceipt(order)"
+                                                    class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            <button @click="updateOrderStatus(order.id, 'preparing')"
+                                                    class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition">
+                                                <i class="fas fa-play mr-1"></i>
+                                                <span x-text="translations.startPreparing"></span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
                         </template>
                         
-                        <template x-if="orders.filter(o => o.status === 'new').length === 0">
+                        <template x-if="getFilteredOrders().filter(o => o.status === 'new').length === 0">
                             <div class="text-center text-gray-500 py-8" x-text="translations.noNewOrders"></div>
                         </template>
                     </div>
                 </div>
                 
+                <!-- Preparing Orders -->
                 <div>
                     <h3 class="text-lg font-bold mb-4 text-center bg-orange-100 py-2 rounded">
                         <i class="fas fa-clock mr-2"></i>
                         <span x-text="translations.preparing"></span>
+                        <span class="ml-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs" 
+                              x-text="getFilteredOrders().filter(o => o.status === 'preparing').length"></span>
                     </h3>
                     
-                    <div class="space-y-4">
-                        <template x-for="order in orders" :key="order.id">
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        <template x-for="order in getFilteredOrders()" :key="order.id">
                             <template x-if="order.status === 'preparing'">
-                                <div class="bg-white border border-orange-200 rounded-lg p-4 shadow">
-                                    <div class="flex justify-between items-start mb-2">
+                                <div class="bg-white border rounded-lg p-4 shadow-lg" 
+                                     :class="getOrderStatusColor(order)">
+                                    <!-- Order Header -->
+                                    <div class="flex justify-between items-start mb-3">
                                         <div>
-                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="font-bold text-lg" x-text="'#' + order.id"></div>
+                                                <div x-show="order.urgent" class="bg-red-500 text-white px-2 py-1 rounded-full text-xs animate-pulse">
+                                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                    <span x-text="translations.kdsUrgent"></span>
+                                                </div>
+                                            </div>
                                             <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
-                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                            <div x-show="order.tableNumber" class="text-xs" x-text="'Table ' + order.tableNumber"></div>
+                                            <div class="text-xs font-bold" x-text="'Age: ' + getOrderAgeText(order)"></div>
+                                            <div class="text-xs" x-text="'Status: ' + translations[getPrepTimeStatus(order)]"></div>
+                                            <!-- Progress Bar for Preparing Orders -->
+                                            <div x-show="order.status === 'preparing'" class="mt-2">
+                                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                                    <div class="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                                                         :style="'width: ' + getOrderPrepProgress(order.id) + '%'"></div>
+                                                </div>
+                                                <div class="text-xs text-gray-600 mt-1" x-text="'Progress: ' + Math.round(getOrderPrepProgress(order.id)) + '%'"></div>
+                                            </div>
                                         </div>
-                                        <div class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">
-                                            <span x-text="translations[order.type]"></span>
+                                        <div class="text-right">
+                                            <div class="px-2 py-1 rounded-full text-xs mb-1" 
+                                                 :class="{
+                                                     'bg-blue-100 text-blue-800': order.type === 'dine-in',
+                                                     'bg-green-100 text-green-800': order.type === 'takeaway',
+                                                     'bg-red-100 text-red-800': order.type === 'delivery'
+                                                 }"
+                                                 x-text="translations[order.type]"></div>
+                                            <div class="text-xs" x-text="'Est: ' + getEstimatedPrepTime(order) + 'm'"></div>
                                         </div>
                                     </div>
                                     
-                                    <div class="border-t pt-2 mt-2">
+                                    <!-- Order Items -->
+                                    <div class="border-t pt-3 mb-3">
                                         <template x-for="item in order.items" :key="item.id">
                                             <div class="flex justify-between text-sm py-1">
-                                                <div>
-                                                    <span x-text="item.quantity + '×'"></span>
+                                                <div class="flex items-center">
+                                                    <span class="font-bold mr-2" x-text="item.quantity + '×'"></span>
                                                     <span x-text="item.name"></span>
                                                 </div>
-                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                                <div class="text-xs text-gray-600" x-text="formatPrice(item.price * item.quantity)"></div>
                                             </div>
                                         </template>
                                     </div>
                                     
-                                    <div class="mt-4 flex justify-end gap-2">
-                                        <button @click="generateReceipt(order)"
-                                                class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
-                                            <i class="fas fa-print mr-1"></i>
-                                            <span x-text="translations.printReceipt"></span>
-                                        </button>
-                                        <button @click="updateOrderStatus(order.id, 'ready')"
-                                                class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition">
-                                            <i class="fas fa-check mr-1"></i>
-                                            <span x-text="translations.markReady"></span>
-                                        </button>
+                                    <!-- Order Actions -->
+                                    <div class="flex justify-between items-center">
+                                        <div class="text-xs">
+                                            <span x-text="'Time: ' + getOrderAgeText(order)"></span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="generateReceipt(order)"
+                                                    class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            <button @click="updateOrderStatus(order.id, 'ready')"
+                                                    class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition">
+                                                <i class="fas fa-check mr-1"></i>
+                                                <span x-text="translations.markReady"></span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
                         </template>
                         
-                        <template x-if="orders.filter(o => o.status === 'preparing').length === 0">
+                        <template x-if="getFilteredOrders().filter(o => o.status === 'preparing').length === 0">
                             <div class="text-center text-gray-500 py-8" x-text="translations.noPreparingOrders"></div>
                         </template>
                     </div>
                 </div>
                 
+                <!-- Ready Orders -->
                 <div>
                     <h3 class="text-lg font-bold mb-4 text-center bg-green-100 py-2 rounded">
                         <i class="fas fa-check-circle mr-2"></i>
                         <span x-text="translations.ready"></span>
+                        <span class="ml-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs" 
+                              x-text="getFilteredOrders().filter(o => o.status === 'ready').length"></span>
                     </h3>
                     
-                    <div class="space-y-4">
-                        <template x-for="order in orders" :key="order.id">
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        <template x-for="order in getFilteredOrders()" :key="order.id">
                             <template x-if="order.status === 'ready'">
-                                <div class="bg-white border border-green-200 rounded-lg p-4 shadow">
-                                    <div class="flex justify-between items-start mb-2">
+                                <div class="bg-white border rounded-lg p-4 shadow-lg" 
+                                     :class="getOrderStatusColor(order)">
+                                    <!-- Order Header -->
+                                    <div class="flex justify-between items-start mb-3">
                                         <div>
-                                            <div class="font-bold" x-text="'#' + order.id"></div>
+                                            <div class="font-bold text-lg" x-text="'#' + order.id"></div>
                                             <div class="text-sm" x-text="formatDateTime(order.timestamp)"></div>
-                                            <div x-show="order.tableNumber" class="text-xs text-gray-600" x-text="'Table ' + order.tableNumber"></div>
+                                            <div x-show="order.tableNumber" class="text-xs" x-text="'Table ' + order.tableNumber"></div>
+                                            <div class="text-xs font-bold" x-text="'Age: ' + getOrderAgeText(order)"></div>
                                         </div>
-                                        <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                                            <span x-text="translations[order.type]"></span>
+                                        <div class="text-right">
+                                            <div class="px-2 py-1 rounded-full text-xs mb-1" 
+                                                 :class="{
+                                                     'bg-blue-100 text-blue-800': order.type === 'dine-in',
+                                                     'bg-green-100 text-green-800': order.type === 'takeaway',
+                                                     'bg-red-100 text-red-800': order.type === 'delivery'
+                                                 }"
+                                                 x-text="translations[order.type]"></div>
+                                            <div class="text-xs" x-text="'Total: ' + formatPrice(order.total)"></div>
                                         </div>
                                     </div>
                                     
-                                    <div class="border-t pt-2 mt-2">
+                                    <!-- Order Items -->
+                                    <div class="border-t pt-3 mb-3">
                                         <template x-for="item in order.items" :key="item.id">
                                             <div class="flex justify-between text-sm py-1">
-                                                <div>
-                                                    <span x-text="item.quantity + '×'"></span>
+                                                <div class="flex items-center">
+                                                    <span class="font-bold mr-2" x-text="item.quantity + '×'"></span>
                                                     <span x-text="item.name"></span>
                                                 </div>
-                                                <div x-text="formatPrice(item.price * item.quantity)"></div>
+                                                <div class="text-xs text-gray-600" x-text="formatPrice(item.price * item.quantity)"></div>
                                             </div>
                                         </template>
                                     </div>
                                     
-                                    <div class="mt-4 flex justify-end gap-2">
-                                        <button @click="generateReceipt(order)"
-                                                class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 transition">
-                                            <i class="fas fa-print mr-1"></i>
-                                            <span x-text="translations.printReceipt"></span>
-                                        </button>
-                                        <button @click="completeOrder(order.id)"
-                                                class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition">
-                                            <i class="fas fa-times mr-1"></i>
-                                            <span x-text="translations.complete"></span>
-                                        </button>
+                                    <!-- Order Actions -->
+                                    <div class="flex justify-between items-center">
+                                        <div class="text-xs">
+                                            <span x-text="'Ready: ' + getOrderAgeText(order)"></span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button @click="generateReceipt(order)"
+                                                    class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            <button @click="completeOrder(order.id)"
+                                                    class="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600 transition">
+                                                <i class="fas fa-times mr-1"></i>
+                                                <span x-text="translations.complete"></span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
                         </template>
                         
-                        <template x-if="orders.filter(o => o.status === 'ready').length === 0">
+                        <template x-if="getFilteredOrders().filter(o => o.status === 'ready').length === 0">
                             <div class="text-center text-gray-500 py-8" x-text="translations.noReadyOrders"></div>
                         </template>
                     </div>
@@ -1090,6 +1229,57 @@
                 <button @click="showBackup = false"
                         class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
                     <span x-text="translations.cancel"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KDS Settings Modal -->
+    <div x-show="showKdsSettings" 
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click="showKdsSettings = false">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" x-text="translations.kdsSettings"></h3>
+                <button @click="showKdsSettings = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" x-text="translations.kdsRefreshInterval"></label>
+                    <input type="number" x-model="kdsRefreshInterval" min="5" max="300" step="5"
+                           class="w-full border rounded-lg px-3 py-2">
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" x-model="kdsAutoRefresh" id="kdsAutoRefresh"
+                           class="mr-2">
+                    <label for="kdsAutoRefresh" class="text-sm" x-text="translations.kdsAutoRefresh"></label>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" x-model="kdsSoundEnabled" id="kdsSoundEnabled"
+                           class="mr-2">
+                    <label for="kdsSoundEnabled" class="text-sm" x-text="translations.kdsSoundEnabled"></label>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" x-model="kdsNotifications" id="kdsNotifications"
+                           class="mr-2">
+                    <label for="kdsNotifications" class="text-sm" x-text="translations.kdsNotifications"></label>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button @click="showKdsSettings = false"
+                        class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                    <span x-text="translations.cancel"></span>
+                </button>
+                <button @click="showKdsSettings = false; startKdsAutoRefresh()" 
+                        class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
+                    <span x-text="translations.saveSettings"></span>
                 </button>
             </div>
         </div>

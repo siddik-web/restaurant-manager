@@ -16,6 +16,17 @@ document.addEventListener('alpine:init', () => {
         showPrintOptions: false,
         showReports: false,
         showBackup: false,
+        kdsView: 'all', // all, new, preparing, ready
+        kdsFilter: 'all', // all, dine-in, takeaway, delivery
+        kdsSort: 'time', // time, priority, table
+        showKdsSettings: false,
+        kdsAutoRefresh: true,
+        kdsSoundEnabled: true,
+        kdsNotifications: true,
+        kdsRefreshInterval: 30, // seconds
+        kdsPriorityOrders: [],
+        kdsUrgentOrders: [],
+        kdsRefreshTimer: null,
         
         // Sample data
         currentOrder: {
@@ -114,6 +125,80 @@ document.addEventListener('alpine:init', () => {
             noNewOrders: 'No new orders',
             noPreparingOrders: 'No orders in preparation',
             noReadyOrders: 'No orders ready',
+            
+            // Enhanced KDS
+            kdsSettings: 'KDS Settings',
+            kdsView: 'KDS View',
+            kdsFilter: 'Filter Orders',
+            kdsSort: 'Sort Orders',
+            kdsAutoRefresh: 'Auto Refresh',
+            kdsSoundEnabled: 'Sound Notifications',
+            kdsNotifications: 'Browser Notifications',
+            kdsRefreshInterval: 'Refresh Interval (seconds)',
+            kdsPriorityOrders: 'Priority Orders',
+            kdsUrgentOrders: 'Urgent Orders',
+            kdsOrderTimer: 'Order Timer',
+            kdsPrepTime: 'Prep Time',
+            kdsEstimatedTime: 'Estimated Time',
+            kdsActualTime: 'Actual Time',
+            kdsTimeRemaining: 'Time Remaining',
+            kdsOverdue: 'Overdue',
+            kdsOnTime: 'On Time',
+            kdsEarly: 'Early',
+            kdsLate: 'Late',
+            kdsOrderNotes: 'Order Notes',
+            kdsSpecialInstructions: 'Special Instructions',
+            kdsAllergenInfo: 'Allergen Information',
+            kdsModifications: 'Modifications',
+            kdsUrgent: 'Urgent',
+            kdsPriority: 'Priority',
+            kdsNormal: 'Normal',
+            kdsLow: 'Low',
+            kdsOrderAge: 'Order Age',
+            kdsTimeInQueue: 'Time in Queue',
+            kdsAveragePrepTime: 'Average Prep Time',
+            kdsKitchenStats: 'Kitchen Statistics',
+            kdsOrdersPerHour: 'Orders per Hour',
+            kdsEfficiency: 'Efficiency',
+            kdsBottleneck: 'Bottleneck Items',
+            kdsPerformance: 'Performance',
+            kdsFullScreen: 'Full Screen',
+            kdsCompactView: 'Compact View',
+            kdsDetailedView: 'Detailed View',
+            kdsPrintOrder: 'Print Order',
+            kdsAssignChef: 'Assign Chef',
+            kdsChefName: 'Chef Name',
+            kdsStation: 'Station',
+            kdsStation1: 'Station 1',
+            kdsStation2: 'Station 2',
+            kdsStation3: 'Station 3',
+            kdsStation4: 'Station 4',
+            kdsAssignOrder: 'Assign Order',
+            kdsUnassignOrder: 'Unassign Order',
+            kdsOrderAssigned: 'Order Assigned',
+            kdsOrderUnassigned: 'Order Unassigned',
+            kdsMarkUrgent: 'Mark Urgent',
+            kdsUnmarkUrgent: 'Unmark Urgent',
+            kdsAddNote: 'Add Note',
+            kdsOrderNotes: 'Order Notes',
+            kdsPrepProgress: 'Prep Progress',
+            kdsKitchenEfficiency: 'Kitchen Efficiency',
+            kdsOnTimeDelivery: 'On-Time Delivery',
+            kdsUrgentOrders: 'Urgent Orders',
+            kdsPriorityOrders: 'Priority Orders',
+            kdsOrderProgress: 'Order Progress',
+            kdsTimeTracking: 'Time Tracking',
+            kdsPerformanceMetrics: 'Performance Metrics',
+            kdsRealTimeUpdates: 'Real-Time Updates',
+            kdsOrderQueue: 'Order Queue',
+            kdsKitchenFlow: 'Kitchen Flow',
+            kdsOrderManagement: 'Order Management',
+            kdsChefAssignment: 'Chef Assignment',
+            kdsStationManagement: 'Station Management',
+            kdsOrderPrioritization: 'Order Prioritization',
+            kdsTimeManagement: 'Time Management',
+            kdsQualityControl: 'Quality Control',
+            kdsKitchenAnalytics: 'Kitchen Analytics',
             
             // Recipes
             recipes: 'Recipes',
@@ -384,6 +469,25 @@ document.addEventListener('alpine:init', () => {
             this.loadOrders();
             this.loadSettings();
             this.loadTables();
+            
+            // Request notification permission
+            if ('Notification' in window) {
+                Notification.requestPermission();
+            }
+            
+            // Start KDS auto-refresh if enabled
+            if (this.kdsAutoRefresh) {
+                this.startKdsAutoRefresh();
+            }
+            
+            // Watch for tab changes to manage KDS auto-refresh
+            this.$watch('currentTab', (newTab) => {
+                if (newTab === 'kds' && this.kdsAutoRefresh) {
+                    this.startKdsAutoRefresh();
+                } else {
+                    this.stopKdsAutoRefresh();
+                }
+            });
             
             // Set initial language from localStorage or browser
             const savedLang = localStorage.getItem('restaurant_lang');
@@ -738,11 +842,14 @@ document.addEventListener('alpine:init', () => {
                 }
             }
             
-            // Play sound for new order
-            document.getElementById('newOrderSound').play();
-            
-            // Generate receipt
-            this.generateReceipt(newOrder);
+                                // Play sound for new order
+                    this.playKdsSound();
+                    
+                    // Show notification
+                    this.showKdsNotification(newOrder);
+                    
+                    // Generate receipt
+                    this.generateReceipt(newOrder);
             
             // Reset current order
             this.currentOrder = {
@@ -770,6 +877,261 @@ document.addEventListener('alpine:init', () => {
         completeOrder(orderId) {
             this.orders = this.orders.filter(o => o.id !== orderId);
             this.saveOrders();
+        },
+        
+        // Enhanced KDS Functions
+        getFilteredOrders() {
+            let filteredOrders = this.orders.filter(order => 
+                ['new', 'preparing', 'ready'].includes(order.status)
+            );
+            
+            // Apply filter
+            if (this.kdsFilter !== 'all') {
+                filteredOrders = filteredOrders.filter(order => order.type === this.kdsFilter);
+            }
+            
+            // Apply view filter
+            if (this.kdsView !== 'all') {
+                filteredOrders = filteredOrders.filter(order => order.status === this.kdsView);
+            }
+            
+            // Apply sorting
+            switch(this.kdsSort) {
+                case 'time':
+                    filteredOrders.sort((a, b) => a.timestamp - b.timestamp);
+                    break;
+                case 'priority':
+                    filteredOrders.sort((a, b) => this.getOrderPriority(b) - this.getOrderPriority(a));
+                    break;
+                case 'table':
+                    filteredOrders.sort((a, b) => (a.tableNumber || 0) - (b.tableNumber || 0));
+                    break;
+            }
+            
+            return filteredOrders;
+        },
+        
+        getOrderPriority(order) {
+            const age = Date.now() - order.timestamp;
+            const ageMinutes = age / (1000 * 60);
+            
+            // Priority based on order age and type
+            let priority = 1;
+            
+            if (ageMinutes > 30) priority = 5; // Very urgent
+            else if (ageMinutes > 20) priority = 4; // Urgent
+            else if (ageMinutes > 15) priority = 3; // High
+            else if (ageMinutes > 10) priority = 2; // Medium
+            
+            // Boost priority for delivery orders
+            if (order.type === 'delivery') priority += 1;
+            
+            // Boost priority for large orders
+            if (order.items.length > 5) priority += 1;
+            
+            return priority;
+        },
+        
+        getOrderAge(order) {
+            const age = Date.now() - order.timestamp;
+            const minutes = Math.floor(age / (1000 * 60));
+            const seconds = Math.floor((age % (1000 * 60)) / 1000);
+            return { minutes, seconds };
+        },
+        
+        getOrderAgeText(order) {
+            const age = this.getOrderAge(order);
+            if (age.minutes > 0) {
+                return `${age.minutes}m ${age.seconds}s`;
+            }
+            return `${age.seconds}s`;
+        },
+        
+        getOrderStatusColor(order) {
+            const age = this.getOrderAge(order);
+            const priority = this.getOrderPriority(order);
+            
+            if (priority >= 5 || age.minutes > 30) return 'bg-red-100 text-red-800 border-red-300';
+            if (priority >= 4 || age.minutes > 20) return 'bg-orange-100 text-orange-800 border-orange-300';
+            if (priority >= 3 || age.minutes > 15) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            return 'bg-blue-100 text-blue-800 border-blue-300';
+        },
+        
+        getEstimatedPrepTime(order) {
+            // Calculate estimated prep time based on items
+            let totalTime = 0;
+            order.items.forEach(item => {
+                const recipe = this.recipes.find(r => r.id === item.id);
+                if (recipe) {
+                    // Base time per item (could be stored in recipe)
+                    totalTime += 5 * item.quantity; // 5 minutes per item
+                }
+            });
+            return Math.max(5, Math.min(45, totalTime)); // Between 5-45 minutes
+        },
+        
+        getPrepTimeStatus(order) {
+            const age = this.getOrderAge(order);
+            const estimated = this.getEstimatedPrepTime(order);
+            
+            if (age.minutes > estimated + 5) return 'overdue';
+            if (age.minutes > estimated) return 'late';
+            if (age.minutes < estimated - 5) return 'early';
+            return 'on-time';
+        },
+        
+        assignOrderToChef(orderId, chefName, station) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                order.assignedChef = chefName;
+                order.assignedStation = station;
+                order.assignedTime = Date.now();
+                this.saveOrders();
+            }
+        },
+        
+        unassignOrder(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                delete order.assignedChef;
+                delete order.assignedStation;
+                delete order.assignedTime;
+                this.saveOrders();
+            }
+        },
+        
+        getKitchenStats() {
+            const todayOrders = this.orders.filter(order => {
+                const orderDate = new Date(order.timestamp).toDateString();
+                const today = new Date().toDateString();
+                return orderDate === today;
+            });
+            
+            const completedOrders = todayOrders.filter(order => order.status === 'completed');
+            const avgPrepTime = completedOrders.length > 0 ? 
+                completedOrders.reduce((sum, order) => {
+                    const prepTime = order.completedTime ? 
+                        (order.completedTime - order.timestamp) / (1000 * 60) : 0;
+                    return sum + prepTime;
+                }, 0) / completedOrders.length : 0;
+            
+            return {
+                totalOrders: todayOrders.length,
+                completedOrders: completedOrders.length,
+                pendingOrders: todayOrders.filter(o => ['new', 'preparing'].includes(o.status)).length,
+                avgPrepTime: Math.round(avgPrepTime),
+                efficiency: completedOrders.length > 0 ? 
+                    Math.round((completedOrders.length / todayOrders.length) * 100) : 0
+            };
+        },
+        
+        startKdsAutoRefresh() {
+            if (this.kdsAutoRefresh && this.currentTab === 'kds') {
+                // Clear any existing interval
+                if (this.kdsRefreshTimer) {
+                    clearInterval(this.kdsRefreshTimer);
+                }
+                
+                this.kdsRefreshTimer = setInterval(() => {
+                    if (this.currentTab === 'kds') {
+                        // Force Alpine.js to re-render
+                        this.$nextTick(() => {
+                            // This will trigger a re-render
+                        });
+                    }
+                }, this.kdsRefreshInterval * 1000);
+            }
+        },
+        
+        stopKdsAutoRefresh() {
+            if (this.kdsRefreshTimer) {
+                clearInterval(this.kdsRefreshTimer);
+                this.kdsRefreshTimer = null;
+            }
+        },
+        
+        playKdsSound() {
+            if (this.kdsSoundEnabled) {
+                const audio = document.getElementById('newOrderSound');
+                if (audio) {
+                    audio.play().catch(e => console.log('Audio play failed:', e));
+                }
+            }
+        },
+        
+        showKdsNotification(order) {
+            if (this.kdsNotifications && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Order', {
+                    body: `Order #${order.id} - ${order.items.length} items`,
+                    icon: '/favicon.ico'
+                });
+            }
+        },
+        
+        // Additional KDS Features
+        markOrderUrgent(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                order.urgent = true;
+                order.urgentTime = Date.now();
+                this.saveOrders();
+            }
+        },
+        
+        unmarkOrderUrgent(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                order.urgent = false;
+                delete order.urgentTime;
+                this.saveOrders();
+            }
+        },
+        
+        addOrderNote(orderId, note) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (order) {
+                if (!order.notes) order.notes = [];
+                order.notes.push({
+                    text: note,
+                    timestamp: Date.now(),
+                    type: 'kitchen'
+                });
+                this.saveOrders();
+            }
+        },
+        
+        getOrderNotes(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            return order?.notes || [];
+        },
+        
+        getOrderPrepProgress(orderId) {
+            const order = this.orders.find(o => o.id === orderId);
+            if (!order) return 0;
+            
+            const age = Date.now() - order.timestamp;
+            const estimated = this.getEstimatedPrepTime(order) * 60 * 1000; // Convert to milliseconds
+            const progress = (age / estimated) * 100;
+            return Math.min(100, Math.max(0, progress));
+        },
+        
+        getKitchenEfficiency() {
+            const todayOrders = this.orders.filter(order => {
+                const orderDate = new Date(order.timestamp).toDateString();
+                const today = new Date().toDateString();
+                return orderDate === today;
+            });
+            
+            const completedOrders = todayOrders.filter(order => order.status === 'completed');
+            const onTimeOrders = completedOrders.filter(order => {
+                const prepTime = order.completedTime ? 
+                    (order.completedTime - order.timestamp) / (1000 * 60) : 0;
+                const estimated = this.getEstimatedPrepTime(order);
+                return prepTime <= estimated;
+            });
+            
+            return completedOrders.length > 0 ? 
+                Math.round((onTimeOrders.length / completedOrders.length) * 100) : 0;
         },
         
         // Recipe Functions
