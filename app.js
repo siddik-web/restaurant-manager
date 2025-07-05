@@ -622,7 +622,7 @@ document.addEventListener('alpine:init', () => {
         // Save orders to localStorage
         saveOrders() {
             try {
-                localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
+            localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 // Trigger storage event for cross-tab sync
                 window.dispatchEvent(new StorageEvent('storage', {
                     key: 'restaurant_orders',
@@ -647,7 +647,7 @@ document.addEventListener('alpine:init', () => {
         // Save settings to localStorage
         saveSettings() {
             try {
-                localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
+            localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
                 // Trigger storage event for cross-tab sync
                 window.dispatchEvent(new StorageEvent('storage', {
                     key: 'restaurant_settings',
@@ -673,7 +673,7 @@ document.addEventListener('alpine:init', () => {
         // Save tables to localStorage
         saveTables() {
             try {
-                localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
+            localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 // Trigger storage event for cross-tab sync
                 window.dispatchEvent(new StorageEvent('storage', {
                     key: 'restaurant_tables',
@@ -1040,14 +1040,14 @@ document.addEventListener('alpine:init', () => {
                 }
             }
             
-                                // Play sound for new order
+            // Play sound for new order
                     this.playKdsSound();
                     
                     // Show notification
                     this.showKdsNotification(newOrder);
-                    
-                    // Generate receipt
-                    this.generateReceipt(newOrder);
+            
+            // Generate receipt
+            this.generateReceipt(newOrder);
             
             // Reset current order
             this.currentOrder = {
@@ -1077,7 +1077,7 @@ document.addEventListener('alpine:init', () => {
             if (order) {
                 order.status = 'completed';
                 order.completedTime = Date.now();
-                this.saveOrders();
+            this.saveOrders();
             }
         },
         
@@ -1673,16 +1673,16 @@ document.addEventListener('alpine:init', () => {
             // Items
             html += '<div class="items">';
             if (receipt.items && Array.isArray(receipt.items)) {
-                receipt.items.forEach(item => {
-                    html += `
-                        <div class="item">
+            receipt.items.forEach(item => {
+                html += `
+                    <div class="item">
                             <div class="item-name">${item.name || 'Unknown Item'}</div>
                             <div class="item-qty">${item.quantity || 0}</div>
                             <div class="item-price">${this.formatPrice((item.price || 0) * (item.quantity || 0))}</div>
-                            <div class="clear"></div>
-                        </div>
-                    `;
-                });
+                        <div class="clear"></div>
+                    </div>
+                `;
+            });
             }
             html += '</div>';
             

@@ -185,8 +185,8 @@
                                     <span x-text="category"></span>
                                     <span class="ml-2 bg-white bg-opacity-20 px-2 py-0.5 rounded-full text-xs" 
                                           x-text="getFilteredRecipes().filter(r => r.category === category).length"></span>
-                                </button>
-                            </template>
+                            </button>
+                        </template>
                         </div>
                     </div>
                     
@@ -315,72 +315,72 @@
                         <!-- Order Items -->
                         <div class="mb-4 max-h-96 overflow-y-auto">
                             <div class="flex justify-between font-bold mb-2 text-sm text-gray-600">
-                                <span x-text="translations.item"></span>
-                                <span x-text="translations.total"></span>
-                            </div>
-                            
+                            <span x-text="translations.item"></span>
+                            <span x-text="translations.total"></span>
+                        </div>
+                        
                             <div class="space-y-2">
-                                <template x-for="(item, index) in currentOrder.items" :key="index">
+                            <template x-for="(item, index) in currentOrder.items" :key="index">
                                     <div class="bg-white rounded-lg p-3 shadow-sm">
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex-1">
                                                 <div class="font-medium text-sm" x-text="item.name"></div>
                                                 <div class="text-xs text-gray-500" x-text="formatPrice(item.price) + ' each'"></div>
-                                            </div>
+                                    </div>
                                             <div class="text-right">
                                                 <div class="font-bold text-sm" x-text="formatPrice(item.price * item.quantity)"></div>
                                             </div>
                                         </div>
                                         
                                         <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-2">
-                                                <button @click="updateItemQuantity(index, item.quantity - 1)"
+                                    <div class="flex items-center gap-2">
+                                        <button @click="updateItemQuantity(index, item.quantity - 1)"
                                                         class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition"
                                                         :disabled="item.quantity <= 1">
-                                                    <i class="fas fa-minus text-xs"></i>
-                                                </button>
+                                            <i class="fas fa-minus text-xs"></i>
+                                        </button>
                                                 <span class="font-bold text-sm w-8 text-center" x-text="item.quantity"></span>
-                                                <button @click="updateItemQuantity(index, item.quantity + 1)"
+                                        <button @click="updateItemQuantity(index, item.quantity + 1)"
                                                         class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition">
-                                                    <i class="fas fa-plus text-xs"></i>
-                                                </button>
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
                                             </div>
                                             <button @click="removeItem(index)" class="text-red-500 hover:text-red-700 transition">
                                                 <i class="fas fa-trash text-sm"></i>
-                                            </button>
-                                        </div>
+                                        </button>
                                     </div>
-                                </template>
-                                
-                                <template x-if="currentOrder.items.length === 0">
+                                </div>
+                            </template>
+                            
+                            <template x-if="currentOrder.items.length === 0">
                                     <div class="text-center py-8 text-gray-500">
                                         <i class="fas fa-shopping-cart text-3xl mb-2"></i>
                                         <p class="text-sm" x-text="translations.emptyOrder"></p>
                                     </div>
-                                </template>
-                            </div>
+                            </template>
                         </div>
-                        
+                    </div>
+                    
                         <!-- Order Summary -->
                         <div class="border-t pt-4 space-y-2">
                             <div class="flex justify-between text-sm">
-                                <span x-text="translations.subtotal"></span>
-                                <span x-text="formatPrice(currentOrder.subtotal)"></span>
-                            </div>
+                            <span x-text="translations.subtotal"></span>
+                            <span x-text="formatPrice(currentOrder.subtotal)"></span>
+                        </div>
                             <div class="flex justify-between text-sm">
                                 <span x-text="translations.tax + ' (' + settings.taxRate + '%)'"></span>
-                                <span x-text="formatPrice(currentOrder.tax)"></span>
-                            </div>
+                            <span x-text="formatPrice(currentOrder.tax)"></span>
+                        </div>
                             <div x-show="orderType === 'delivery'" class="flex justify-between text-sm">
                                 <span x-text="translations.deliveryFee"></span>
                                 <span x-text="formatPrice(currentOrder.deliveryFee)"></span>
                             </div>
                             <div class="flex justify-between font-bold text-lg pt-2 border-t">
-                                <span x-text="translations.total"></span>
-                                <span x-text="formatPrice(currentOrder.total)"></span>
-                            </div>
+                            <span x-text="translations.total"></span>
+                            <span x-text="formatPrice(currentOrder.total)"></span>
                         </div>
-                        
+                    </div>
+                    
                         <!-- Order Info -->
                         <div class="mt-4 p-3 bg-white rounded-lg border">
                             <div class="text-sm space-y-1">
@@ -401,10 +401,10 @@
                         
                         <!-- Action Buttons -->
                         <div class="mt-6 space-y-3">
-                            <button @click="placeOrder()" 
-                                    :disabled="currentOrder.items.length === 0"
+                    <button @click="placeOrder()" 
+                            :disabled="currentOrder.items.length === 0"
                                     class="w-full bg-primary text-white py-3 rounded-lg font-bold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
-                                    x-text="translations.placeOrder">
+                            x-text="translations.placeOrder">
                             </button>
                             
                             <div class="grid grid-cols-2 gap-2">
@@ -417,7 +417,7 @@
                                         :disabled="currentOrder.items.length === 0"
                                         class="bg-gray-500 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition disabled:opacity-50">
                                     <i class="fas fa-save mr-1"></i>Save Draft
-                                </button>
+                    </button>
                             </div>
                         </div>
                     </div>
@@ -430,9 +430,9 @@
             <!-- KDS Header with Controls -->
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-primary flex items-center gap-2">
-                    <i class="fas fa-tv"></i>
-                    <span x-text="translations.kds"></span>
-                </h2>
+                <i class="fas fa-tv"></i>
+                <span x-text="translations.kds"></span>
+            </h2>
                 
                 <div class="flex gap-2">
                     <!-- KDS Controls -->
@@ -565,12 +565,12 @@
                                                     class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
                                                 <i class="fas fa-print"></i>
                                             </button>
-                                            <button @click="updateOrderStatus(order.id, 'preparing')"
+                                        <button @click="updateOrderStatus(order.id, 'preparing')"
                                                     class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition">
-                                                <i class="fas fa-play mr-1"></i>
-                                                <span x-text="translations.startPreparing"></span>
-                                            </button>
-                                        </div>
+                                            <i class="fas fa-play mr-1"></i>
+                                            <span x-text="translations.startPreparing"></span>
+                                        </button>
+                                    </div>
                                     </div>
                                     
                                     <!-- Assigned Chef/Station -->
@@ -636,7 +636,7 @@
                                                 <div class="w-full bg-gray-200 rounded-full h-2">
                                                     <div class="bg-green-600 h-2 rounded-full transition-all duration-300" 
                                                          :style="'width: ' + getOrderPrepProgress(order.id) + '%'"></div>
-                                                </div>
+                                        </div>
                                                 <div class="text-xs text-gray-600 mt-1" x-text="'Progress: ' + Math.round(getOrderPrepProgress(order.id)) + '%'"></div>
                                             </div>
                                         </div>
@@ -675,12 +675,12 @@
                                                     class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
                                                 <i class="fas fa-print"></i>
                                             </button>
-                                            <button @click="updateOrderStatus(order.id, 'ready')"
+                                        <button @click="updateOrderStatus(order.id, 'ready')"
                                                     class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition">
-                                                <i class="fas fa-check mr-1"></i>
-                                                <span x-text="translations.markReady"></span>
-                                            </button>
-                                        </div>
+                                            <i class="fas fa-check mr-1"></i>
+                                            <span x-text="translations.markReady"></span>
+                                        </button>
+                                    </div>
                                     </div>
                                     
                                     <!-- Assigned Chef/Station -->
@@ -770,12 +770,12 @@
                                                     class="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition">
                                                 <i class="fas fa-print"></i>
                                             </button>
-                                            <button @click="completeOrder(order.id)"
+                                        <button @click="completeOrder(order.id)"
                                                     class="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600 transition">
-                                                <i class="fas fa-times mr-1"></i>
-                                                <span x-text="translations.complete"></span>
-                                            </button>
-                                        </div>
+                                            <i class="fas fa-times mr-1"></i>
+                                            <span x-text="translations.complete"></span>
+                                        </button>
+                                    </div>
                                     </div>
                                     
                                     <!-- Assigned Chef/Station -->
@@ -841,11 +841,11 @@
                 </button>
                 <button @click="showRecipeForm = true; editingRecipe = null; resetRecipeForm()"
                         class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">
-                    <i class="fas fa-plus mr-1"></i>
-                    <span x-text="translations.addRecipe"></span>
-                </button>
-            </div>
-            
+                                <i class="fas fa-plus mr-1"></i>
+                                <span x-text="translations.addRecipe"></span>
+                            </button>
+                        </div>
+                        
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Recipe List -->
                 <div class="lg:col-span-1">
@@ -858,27 +858,27 @@
                                      @click="selectedRecipe = recipe; showRecipeForm = false">
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1">
-                                            <div class="font-bold" x-text="recipe.name"></div>
-                                            <div class="text-sm text-gray-600" x-text="recipe.category"></div>
+                                        <div class="font-bold" x-text="recipe.name"></div>
+                                        <div class="text-sm text-gray-600" x-text="recipe.category"></div>
                                             <div class="text-sm font-bold text-primary" x-text="formatPrice(recipe.price)"></div>
-                                        </div>
+                                    </div>
                                         <div class="flex gap-1" @click.stop>
                                             <button @click="duplicateRecipe(recipe)"
                                                     class="text-blue-500 hover:text-blue-700" title="Duplicate">
                                                 <i class="fas fa-copy"></i>
                                             </button>
-                                            <button @click="editRecipe(recipe)"
+                                        <button @click="editRecipe(recipe)"
                                                     class="text-green-500 hover:text-green-700" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                             <button @click="toggleRecipeActive(recipe.id)"
                                                     class="text-yellow-500 hover:text-yellow-700" title="Toggle Active">
                                                 <i class="fas" :class="recipe.isActive ? 'fa-eye' : 'fa-eye-slash'"></i>
                                             </button>
-                                            <button @click="deleteRecipe(recipe.id)"
+                                        <button @click="deleteRecipe(recipe.id)"
                                                     class="text-red-500 hover:text-red-700" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                         </div>
                                     </div>
                                     <div class="text-xs text-gray-500">
@@ -1054,24 +1054,24 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <h4 class="font-bold mb-3">Ingredients</h4>
-                                <div class="bg-white border rounded-lg p-4">
+                            <div class="bg-white border rounded-lg p-4">
                                     <template x-for="ingredient in (selectedRecipe?.ingredients || [])" :key="ingredient.name">
-                                        <div class="flex justify-between py-2 border-b last:border-b-0">
-                                            <div>
+                                    <div class="flex justify-between py-2 border-b last:border-b-0">
+                                        <div>
                                                 <div class="font-medium" x-text="ingredient.name || 'Unknown'"></div>
                                                 <div x-show="ingredient.notes" class="text-xs text-gray-500" x-text="ingredient.notes"></div>
                                             </div>
                                             <div class="text-right">
                                                 <div class="font-bold" x-text="(ingredient.quantity || 0) + ' ' + (ingredient.unit || '')"></div>
-                                            </div>
                                         </div>
-                                    </template>
-                                </div>
+                                    </div>
+                                </template>
                             </div>
-                            
-                            <div>
+                        </div>
+                        
+                        <div>
                                 <h4 class="font-bold mb-3">Instructions</h4>
-                                <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
+                            <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
                                      x-text="selectedRecipe?.instructions || 'No instructions available'"></div>
                             </div>
                         </div>
@@ -1869,7 +1869,7 @@
         </div>
     </div>
 
-    <!-- Audio element for new order notification -->
+        <!-- Audio element for new order notification -->
     <audio id="newOrderSound" preload="auto">
         <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
     </audio>
