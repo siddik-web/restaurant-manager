@@ -115,8 +115,8 @@
                                 <div class="text-gray-600 text-sm mb-2" x-text="formatPrice(recipe.price)"></div>
                                 <div class="text-xs text-gray-500" x-text="recipe.category"></div>
                                 <div x-show="recipe.tags && recipe.tags.length > 0" class="mt-2">
-                                    <template x-for="tag in recipe.tags.slice(0, 2)" :key="tag">
-                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-1 py-0.5 rounded mr-1" x-text="tag"></span>
+                                    <template x-for="tag in (recipe.tags || [])" :key="tag">
+                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1" x-text="tag"></span>
                                     </template>
                                 </div>
                             </button>
@@ -716,7 +716,7 @@
                                         <span x-text="' | ' + recipe.difficulty"></span>
                                     </div>
                                     <div x-show="recipe.tags && recipe.tags.length > 0" class="mt-2">
-                                        <template x-for="tag in recipe.tags" :key="tag">
+                                        <template x-for="tag in (recipe.tags || [])" :key="tag">
                                             <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1" x-text="tag"></span>
                                         </template>
                                     </div>
@@ -820,7 +820,7 @@
                             
                             <div class="mb-4">
                                 <label class="block text-sm font-medium mb-1">Tags (comma-separated)</label>
-                                <input type="text" x-model="recipeForm.tags.join(', ')" placeholder="vegetarian, spicy, gluten-free"
+                                <input type="text" x-model="(recipeForm.tags || []).join(', ')" placeholder="vegetarian, spicy, gluten-free"
                                        class="w-full border rounded-lg px-3 py-2"
                                        @input="recipeForm.tags = $event.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)">
                             </div>
@@ -884,14 +884,14 @@
                             <div>
                                 <h4 class="font-bold mb-3">Ingredients</h4>
                                 <div class="bg-white border rounded-lg p-4">
-                                    <template x-for="ingredient in selectedRecipe?.ingredients || []" :key="ingredient.name">
+                                    <template x-for="ingredient in (selectedRecipe?.ingredients || [])" :key="ingredient.name">
                                         <div class="flex justify-between py-2 border-b last:border-b-0">
                                             <div>
-                                                <div class="font-medium" x-text="ingredient.name"></div>
+                                                <div class="font-medium" x-text="ingredient.name || 'Unknown'"></div>
                                                 <div x-show="ingredient.notes" class="text-xs text-gray-500" x-text="ingredient.notes"></div>
                                             </div>
                                             <div class="text-right">
-                                                <div class="font-bold" x-text="ingredient.quantity + ' ' + ingredient.unit"></div>
+                                                <div class="font-bold" x-text="(ingredient.quantity || 0) + ' ' + (ingredient.unit || '')"></div>
                                             </div>
                                         </div>
                                     </template>
@@ -901,14 +901,14 @@
                             <div>
                                 <h4 class="font-bold mb-3">Instructions</h4>
                                 <div class="bg-white border rounded-lg p-4 whitespace-pre-line" 
-                                     x-text="selectedRecipe?.instructions || ''"></div>
+                                     x-text="selectedRecipe?.instructions || 'No instructions available'"></div>
                             </div>
                         </div>
                         
                         <div x-show="selectedRecipe?.tags && selectedRecipe.tags.length > 0" class="mt-4">
                             <h4 class="font-bold mb-2">Tags</h4>
                             <div class="flex flex-wrap gap-2">
-                                <template x-for="tag in selectedRecipe.tags" :key="tag">
+                                <template x-for="tag in (selectedRecipe?.tags || [])" :key="tag">
                                     <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm" x-text="tag"></span>
                                 </template>
                             </div>
@@ -916,7 +916,7 @@
                         
                         <div x-show="selectedRecipe?.notes" class="mt-4">
                             <h4 class="font-bold mb-2">Notes</h4>
-                            <div class="bg-white border rounded-lg p-4" x-text="selectedRecipe.notes"></div>
+                            <div class="bg-white border rounded-lg p-4" x-text="selectedRecipe?.notes || ''"></div>
                         </div>
                     </div>
                     

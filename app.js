@@ -1288,47 +1288,41 @@ document.addEventListener('alpine:init', () => {
         // Recipe Functions
         editRecipe(recipe) {
             this.editingRecipe = recipe;
-            this.recipeForm = {...recipe};
+            this.recipeForm = {
+                ...recipe,
+                tags: recipe.tags || [],
+                allergens: recipe.allergens || [],
+                ingredients: recipe.ingredients || [{name: '', quantity: 0, unit: '', notes: ''}]
+            };
             this.showRecipeForm = true;
         },
         
         saveRecipe() {
+            // Ensure tags and allergens are arrays
+            const recipeToSave = {
+                ...this.recipeForm,
+                tags: Array.isArray(this.recipeForm.tags) ? this.recipeForm.tags : [],
+                allergens: Array.isArray(this.recipeForm.allergens) ? this.recipeForm.allergens : [],
+                ingredients: Array.isArray(this.recipeForm.ingredients) ? this.recipeForm.ingredients : [{name: '', quantity: 0, unit: '', notes: ''}]
+            };
+            
             if (this.editingRecipe) {
                 // Update existing recipe
                 const index = this.recipes.findIndex(r => r.id === this.recipeForm.id);
                 if (index !== -1) {
-                    this.recipes[index] = {...this.recipeForm};
+                    this.recipes[index] = recipeToSave;
                 }
             } else {
                 // Add new recipe
-                this.recipeForm.id = Date.now();
-                this.recipes.push({...this.recipeForm});
+                recipeToSave.id = Date.now();
+                recipeToSave.createdAt = Date.now();
+                this.recipes.push(recipeToSave);
             }
             
             this.saveRecipes();
             this.showRecipeForm = false;
             this.editingRecipe = null;
-            this.recipeForm = {
-                id: null,
-                name: '',
-                category: '',
-                price: 0,
-                basePortions: 4,
-                prepTime: 15, // minutes
-                cookTime: 20, // minutes
-                difficulty: 'medium', // easy, medium, hard
-                allergens: [], // array of allergen strings
-                tags: [], // array of tag strings
-                ingredients: [
-                    {name: '', quantity: 0, unit: '', notes: ''}
-                ],
-                instructions: '',
-                notes: '',
-                image: '',
-                isActive: true,
-                createdAt: null,
-                updatedAt: null
-            };
+            this.resetRecipeForm();
         },
         
         deleteRecipe(id) {
@@ -1571,6 +1565,10 @@ document.addEventListener('alpine:init', () => {
         
         generateReceiptHTML() {
             const receipt = this.currentReceipt;
+            if (!receipt) {
+                return '<div class="receipt">No receipt data available</div>';
+            }
+            
             let html = '<div class="receipt">';
             
             // Header
@@ -1578,53 +1576,55 @@ document.addEventListener('alpine:init', () => {
                 if (this.settings.printLogo && this.settings.logo) {
                     html += `<img src="${this.settings.logo}" class="logo" alt="Logo">`;
                 }
-                html += `<div class="title">${this.settings.restaurantName}</div>`;
-                html += `<div class="info">${this.settings.address}</div>`;
-                html += `<div class="info">${this.settings.phone}</div>`;
-                html += `<div class="info">${this.settings.email}</div>`;
+                html += `<div class="title">${this.settings.restaurantName || 'Restaurant'}</div>`;
+                html += `<div class="info">${this.settings.address || ''}</div>`;
+                html += `<div class="info">${this.settings.phone || ''}</div>`;
+                html += `<div class="info">${this.settings.email || ''}</div>`;
                 html += '<div class="divider"></div>';
             }
             
             // Receipt Info
-            html += `<div class="info">${this.translations.receiptNumber} ${receipt.receiptNumber}</div>`;
-            html += `<div class="info">${this.translations.date}: ${receipt.printDate}</div>`;
-            html += `<div class="info">${this.translations.time}: ${receipt.printTime}</div>`;
+            html += `<div class="info">${this.translations.receiptNumber || 'Receipt #'} ${receipt.receiptNumber || 'N/A'}</div>`;
+            html += `<div class="info">${this.translations.date || 'Date'}: ${receipt.printDate || new Date().toLocaleDateString()}</div>`;
+            html += `<div class="info">${this.translations.time || 'Time'}: ${receipt.printTime || new Date().toLocaleTimeString()}</div>`;
             if (receipt.tableNumber) {
-                html += `<div class="info">${this.translations.tableNumber}: ${receipt.tableNumber}</div>`;
+                html += `<div class="info">${this.translations.tableNumber || 'Table'}: ${receipt.tableNumber}</div>`;
             }
-            html += `<div class="info">${this.translations.orderType}: ${this.translations[receipt.type]}</div>`;
+            html += `<div class="info">${this.translations.orderType || 'Order Type'}: ${this.translations[receipt.type] || receipt.type}</div>`;
             html += '<div class="divider"></div>';
             
             // Items
             html += '<div class="items">';
-            receipt.items.forEach(item => {
-                html += `
-                    <div class="item">
-                        <div class="item-name">${item.name}</div>
-                        <div class="item-qty">${item.quantity}</div>
-                        <div class="item-price">${this.formatPrice(item.price * item.quantity)}</div>
-                        <div class="clear"></div>
-                    </div>
-                `;
-            });
+            if (receipt.items && Array.isArray(receipt.items)) {
+                receipt.items.forEach(item => {
+                    html += `
+                        <div class="item">
+                            <div class="item-name">${item.name || 'Unknown Item'}</div>
+                            <div class="item-qty">${item.quantity || 0}</div>
+                            <div class="item-price">${this.formatPrice((item.price || 0) * (item.quantity || 0))}</div>
+                            <div class="clear"></div>
+                        </div>
+                    `;
+                });
+            }
             html += '</div>';
             
             html += '<div class="divider"></div>';
             
             // Totals
             html += '<div class="totals">';
-            html += `<div class="total-line">${this.translations.subtotal}: ${this.formatPrice(receipt.subtotal)}</div>`;
-            html += `<div class="total-line">${this.translations.tax}: ${this.formatPrice(receipt.tax)}</div>`;
+            html += `<div class="total-line">${this.translations.subtotal || 'Subtotal'}: ${this.formatPrice(receipt.subtotal || 0)}</div>`;
+            html += `<div class="total-line">${this.translations.tax || 'Tax'}: ${this.formatPrice(receipt.tax || 0)}</div>`;
             if (receipt.deliveryFee > 0) {
-                html += `<div class="total-line">${this.translations.deliveryFee}: ${this.formatPrice(receipt.deliveryFee)}</div>`;
+                html += `<div class="total-line">${this.translations.deliveryFee || 'Delivery Fee'}: ${this.formatPrice(receipt.deliveryFee || 0)}</div>`;
             }
-            html += `<div class="total-line grand-total">${this.translations.grandTotal}: ${this.formatPrice(receipt.total)}</div>`;
+            html += `<div class="total-line grand-total">${this.translations.grandTotal || 'Grand Total'}: ${this.formatPrice(receipt.total || 0)}</div>`;
             html += '</div>';
             
             // Footer
             if (this.settings.printFooter) {
                 html += '<div class="divider"></div>';
-                html += `<div class="footer">${this.settings.receiptFooter}</div>`;
+                html += `<div class="footer">${this.settings.receiptFooter || 'Thank you for your business!'}</div>`;
             }
             
             html += '</div>';
