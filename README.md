@@ -2,6 +2,13 @@
 
 A modern, modular restaurant Point of Sale (POS) system built with Alpine.js and Laravel API integration. The system is designed with a clean, maintainable architecture that separates concerns into distinct modules, including a comprehensive **Inventory Management System**.
 
+![image](https://github.com/user-attachments/assets/7eceeb3d-84cd-4f5a-80f3-5457bd6641a9)
+![image](https://github.com/user-attachments/assets/d41b5001-a3c3-419c-bab4-7024e0435924)
+![image](https://github.com/user-attachments/assets/5d823816-3210-4f5a-bbd2-c38d3aeea766)
+![image](https://github.com/user-attachments/assets/6fc563fc-8043-4692-b77d-c3f2624ffc31)
+![image](https://github.com/user-attachments/assets/f9a41969-2f73-44d0-aed7-6cd82c3f8e11)
+
+
 ## 🏗️ Architecture Overview
 
 The system is built using a modular approach with the following structure:
