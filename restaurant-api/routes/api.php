@@ -9,6 +9,10 @@ use App\Http\Controllers\Api\ChefController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\WasteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,6 +73,36 @@ Route::get('settings/restaurant', [SettingController::class, 'getRestaurantSetti
 Route::post('settings/restaurant', [SettingController::class, 'updateRestaurantSettings']);
 Route::get('settings/types', [SettingController::class, 'getTypes']);
 
+// Inventory Routes
+Route::apiResource('inventory', InventoryController::class);
+Route::patch('inventory/{inventory}/adjust-stock', [InventoryController::class, 'adjustStock']);
+Route::get('inventory/categories', [InventoryController::class, 'categories']);
+Route::get('inventory/alerts/low-stock', [InventoryController::class, 'lowStockAlerts']);
+Route::get('inventory/alerts/expiring', [InventoryController::class, 'expiringItems']);
+Route::get('inventory/{inventory}/transactions', [InventoryController::class, 'transactions']);
+Route::post('inventory/bulk-update', [InventoryController::class, 'bulkUpdate']);
+
+// Supplier Routes
+Route::apiResource('suppliers', SupplierController::class);
+Route::patch('suppliers/{supplier}/toggle-active', [SupplierController::class, 'toggleActive']);
+Route::get('suppliers/{supplier}/stats', [SupplierController::class, 'getStats']);
+Route::get('suppliers/active', [SupplierController::class, 'getActive']);
+Route::get('suppliers/performance', [SupplierController::class, 'getByPerformance']);
+
+// Purchase Routes
+Route::apiResource('purchases', PurchaseController::class);
+Route::patch('purchases/{purchase}/status', [PurchaseController::class, 'updateStatus']);
+Route::post('purchases/{purchase}/receive-items', [PurchaseController::class, 'receiveItems']);
+Route::get('purchases/alerts/overdue', [PurchaseController::class, 'getOverdue']);
+Route::get('purchases/stats', [PurchaseController::class, 'getStats']);
+
+// Waste Routes
+Route::apiResource('waste', WasteController::class);
+Route::get('waste/reasons', [WasteController::class, 'reasons']);
+Route::get('waste/categories', [WasteController::class, 'categories']);
+Route::get('waste/stats', [WasteController::class, 'getStats']);
+Route::post('waste/bulk-create', [WasteController::class, 'bulkCreate']);
+
 // Report Routes
 Route::prefix('reports')->group(function () {
     Route::get('daily-sales', [ReportController::class, 'dailySales']);
@@ -80,4 +114,12 @@ Route::prefix('reports')->group(function () {
     Route::get('chef-performance', [ReportController::class, 'chefPerformance']);
     Route::get('station-performance', [ReportController::class, 'stationPerformance']);
     Route::get('export', [ReportController::class, 'exportData']);
+    
+    // Inventory Reports
+    Route::get('inventory-stock', [ReportController::class, 'inventoryStock']);
+    Route::get('inventory-value', [ReportController::class, 'inventoryValue']);
+    Route::get('inventory-movement', [ReportController::class, 'inventoryMovement']);
+    Route::get('purchase-analysis', [ReportController::class, 'purchaseAnalysis']);
+    Route::get('waste-analysis', [ReportController::class, 'wasteAnalysis']);
+    Route::get('supplier-performance', [ReportController::class, 'supplierPerformance']);
 }); 

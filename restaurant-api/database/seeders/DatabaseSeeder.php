@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             TableSeeder::class,
             ChefSeeder::class,
             StationSeeder::class,
+            SupplierSeeder::class,
+            InventorySeeder::class,
         ]);
     }
 }

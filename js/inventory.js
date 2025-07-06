@@ -29,7 +29,7 @@ export const createInventoryModule = (state) => ({
         minStock: 0,
         maxStock: 0,
         cost: 0,
-        supplier: '',
+        supplier_id: '',
         location: '',
         expiryDate: null,
         notes: ''
@@ -37,7 +37,7 @@ export const createInventoryModule = (state) => ({
     
     // Purchase form
     purchaseForm: {
-        supplier: '',
+        supplier_id: '',
         items: [],
         totalCost: 0,
         purchaseDate: new Date().toISOString().split('T')[0],
@@ -48,20 +48,20 @@ export const createInventoryModule = (state) => ({
     // Supplier form
     supplierForm: {
         name: '',
-        contact: '',
+        contact_person: '',
         phone: '',
         email: '',
         address: '',
-        paymentTerms: '',
+        payment_terms: '',
         notes: ''
     },
     
     // Waste form
     wasteForm: {
-        item: '',
+        inventory_id: '',
         quantity: 0,
         reason: '',
-        date: new Date().toISOString().split('T')[0],
+        waste_date: new Date().toISOString().split('T')[0],
         notes: ''
     },
     
@@ -71,130 +71,54 @@ export const createInventoryModule = (state) => ({
     inventorySortBy: 'name',
     inventorySortOrder: 'asc',
     
-    // Load inventory data
-    loadInventory() {
-        const savedInventory = localStorage.getItem('restaurant_inventory');
-        this.inventory = savedInventory ? JSON.parse(savedInventory) : this.getDefaultInventory();
-        
-        const savedSuppliers = localStorage.getItem('restaurant_suppliers');
-        this.suppliers = savedSuppliers ? JSON.parse(savedSuppliers) : this.getDefaultSuppliers();
-        
-        const savedPurchases = localStorage.getItem('restaurant_purchases');
-        this.purchases = savedPurchases ? JSON.parse(savedPurchases) : [];
-        
-        const savedWaste = localStorage.getItem('restaurant_waste');
-        this.waste = savedWaste ? JSON.parse(savedWaste) : [];
-        
-        this.updateInventoryAlerts();
+    // Load all inventory-related data from API
+    async loadInventory() {
+        // Inventory
+        const invRes = await api.request('get', '/inventory');
+        this.inventory = invRes.success ? (invRes.data.data || invRes.data) : [];
+        // Suppliers
+        const supRes = await api.request('get', '/suppliers');
+        this.suppliers = supRes.success ? (supRes.data.data || supRes.data) : [];
+        // Purchases
+        const purRes = await api.request('get', '/purchases');
+        this.purchases = purRes.success ? (purRes.data.data || purRes.data) : [];
+        // Waste
+        const wasteRes = await api.request('get', '/waste');
+        this.waste = wasteRes.success ? (wasteRes.data.data || wasteRes.data) : [];
+        // Alerts
+        await this.updateInventoryAlerts();
     },
     
-    // Save inventory data
-    saveInventory() {
-        localStorage.setItem('restaurant_inventory', JSON.stringify(this.inventory));
-        this.updateInventoryAlerts();
-    },
-    
-    saveSuppliers() {
-        localStorage.setItem('restaurant_suppliers', JSON.stringify(this.suppliers));
-    },
-    
-    savePurchases() {
-        localStorage.setItem('restaurant_purchases', JSON.stringify(this.purchases));
-    },
-    
-    saveWaste() {
-        localStorage.setItem('restaurant_waste', JSON.stringify(this.waste));
-    },
-    
-    // Get filtered inventory
-    getFilteredInventory() {
-        let filtered = this.inventory;
-        
-        // Search filter
-        if (this.inventorySearchTerm) {
-            const search = this.inventorySearchTerm.toLowerCase();
-            filtered = filtered.filter(item => 
-                item.name.toLowerCase().includes(search) ||
-                item.category.toLowerCase().includes(search) ||
-                item.supplier.toLowerCase().includes(search)
-            );
-        }
-        
-        // Category filter
-        if (this.inventoryFilterCategory !== 'all') {
-            filtered = filtered.filter(item => item.category === this.inventoryFilterCategory);
-        }
-        
-        // Sort
-        filtered.sort((a, b) => {
-            let aVal = a[this.inventorySortBy];
-            let bVal = b[this.inventorySortBy];
-            
-            if (this.inventorySortBy === 'name' || this.inventorySortBy === 'category') {
-                aVal = aVal.toLowerCase();
-                bVal = bVal.toLowerCase();
-            }
-            
-            if (this.inventorySortOrder === 'asc') {
-                return aVal > bVal ? 1 : -1;
-            } else {
-                return aVal < bVal ? 1 : -1;
-            }
-        });
-        
-        return filtered;
-    },
-    
-    // Get inventory categories
-    getInventoryCategories() {
-        const categories = [...new Set(this.inventory.map(item => item.category))];
-        return categories.sort();
-    },
-    
-    // Inventory CRUD operations
-    addInventory() {
+    // Inventory CRUD
+    async addInventory() {
         this.editingInventory = null;
         this.resetInventoryForm();
         this.showInventoryForm = true;
     },
-    
-    editInventory(item) {
+    async editInventory(item) {
         this.editingInventory = item;
         this.inventoryForm = { ...item };
         this.showInventoryForm = true;
     },
-    
-    saveInventory() {
-        if (this.editingInventory) {
-            // Update existing item
-            const index = this.inventory.findIndex(item => item.id === this.inventoryForm.id);
-            if (index !== -1) {
-                this.inventory[index] = { ...this.inventoryForm };
-            }
+    async saveInventory() {
+        if (this.editingInventory && this.inventoryForm.id) {
+            // Update
+            await api.request('put', `/inventory/${this.inventoryForm.id}`, this.inventoryForm);
         } else {
-            // Add new item
-            const newItem = {
-                ...this.inventoryForm,
-                id: Date.now(),
-                createdAt: Date.now(),
-                lastUpdated: Date.now()
-            };
-            this.inventory.push(newItem);
+            // Create
+            await api.request('post', '/inventory', this.inventoryForm);
         }
-        
-        this.saveInventory();
         this.showInventoryForm = false;
         this.editingInventory = null;
         this.resetInventoryForm();
+        await this.loadInventory();
     },
-    
-    deleteInventory(id) {
+    async deleteInventory(id) {
         if (confirm('Are you sure you want to delete this inventory item?')) {
-            this.inventory = this.inventory.filter(item => item.id !== id);
-            this.saveInventory();
+            await api.request('delete', `/inventory/${id}`);
+            await this.loadInventory();
         }
     },
-    
     resetInventoryForm() {
         this.inventoryForm = {
             name: '',
@@ -204,7 +128,7 @@ export const createInventoryModule = (state) => ({
             minStock: 0,
             maxStock: 0,
             cost: 0,
-            supplier: '',
+            supplier_id: '',
             location: '',
             expiryDate: null,
             notes: ''
@@ -212,139 +136,121 @@ export const createInventoryModule = (state) => ({
     },
     
     // Stock operations
-    updateStock(id, quantity, operation = 'add', reason = 'Manual adjustment') {
-        const item = this.inventory.find(item => item.id === id);
-        if (item) {
-            const oldStock = item.currentStock;
+    async updateStock(id, quantity, operation = 'add', reason = 'Manual adjustment') {
+        try {
+            const adjustmentData = {
+                quantity: quantity,
+                adjustment_type: operation,
+                reason: reason
+            };
             
-            if (operation === 'add') {
-                item.currentStock += quantity;
-            } else if (operation === 'subtract') {
-                item.currentStock = Math.max(0, item.currentStock - quantity);
-            } else if (operation === 'set') {
-                item.currentStock = quantity;
-            }
-            
-            item.lastUpdated = Date.now();
-            
-            // Log the transaction
-            this.logStockTransaction(item, oldStock, item.currentStock, operation, reason);
-            
-            this.saveInventory();
-            this.updateInventoryAlerts();
+            await api.request('patch', `/inventory/${id}/adjust-stock`, adjustmentData);
+            await this.loadInventory();
+        } catch (error) {
+            console.error('Error updating stock:', error);
+            alert('Error updating stock. Please try again.');
         }
     },
     
     // Automatic stock deduction from orders
-    deductStockFromOrder(order) {
-        order.items.forEach(orderItem => {
-            const recipe = state.recipes.find(r => r.id === orderItem.id);
-            if (recipe && recipe.ingredients) {
-                recipe.ingredients.forEach(ingredient => {
-                    const inventoryItem = this.inventory.find(item => 
-                        item.name.toLowerCase() === ingredient.name.toLowerCase()
-                    );
-                    
-                    if (inventoryItem) {
-                        const totalQuantity = ingredient.quantity * orderItem.quantity;
-                        this.updateStock(
-                            inventoryItem.id, 
-                            totalQuantity, 
-                            'subtract', 
-                            `Order #${order.id} - ${recipe.name}`
+    async deductStockFromOrder(order) {
+        try {
+            for (const orderItem of order.items) {
+                const recipe = state.recipes.find(r => r.id === orderItem.id);
+                if (recipe && recipe.ingredients) {
+                    for (const ingredient of recipe.ingredients) {
+                        const inventoryItem = this.inventory.find(item => 
+                            item.name.toLowerCase() === ingredient.name.toLowerCase()
                         );
+                        
+                        if (inventoryItem) {
+                            const totalQuantity = ingredient.quantity * orderItem.quantity;
+                            await this.updateStock(
+                                inventoryItem.id, 
+                                totalQuantity, 
+                                'subtract', 
+                                `Order #${order.id} - ${recipe.name}`
+                            );
+                        }
                     }
-                });
+                }
             }
-        });
-    },
-    
-    // Stock transaction logging
-    logStockTransaction(item, oldStock, newStock, operation, reason) {
-        const transaction = {
-            id: Date.now(),
-            itemId: item.id,
-            itemName: item.name,
-            oldStock,
-            newStock,
-            change: newStock - oldStock,
-            operation,
-            reason,
-            timestamp: Date.now()
-        };
-        
-        const transactions = JSON.parse(localStorage.getItem('restaurant_stock_transactions') || '[]');
-        transactions.push(transaction);
-        localStorage.setItem('restaurant_stock_transactions', JSON.stringify(transactions));
+        } catch (error) {
+            console.error('Error deducting stock from order:', error);
+        }
     },
     
     // Get stock transactions
-    getStockTransactions(itemId = null) {
-        const transactions = JSON.parse(localStorage.getItem('restaurant_stock_transactions') || '[]');
-        if (itemId) {
-            return transactions.filter(t => t.itemId === itemId);
+    async getStockTransactions(itemId = null) {
+        try {
+            if (itemId) {
+                const response = await api.request('get', `/inventory/${itemId}/transactions`);
+                return response.success ? (response.data.data || response.data) : [];
+            } else {
+                // For all transactions, we'll need to implement a general endpoint
+                // For now, return empty array
+                return [];
+            }
+        } catch (error) {
+            console.error('Error getting stock transactions:', error);
+            return [];
         }
-        return transactions;
     },
     
     // Purchase management
-    addPurchase() {
+    async addPurchase() {
         this.editingPurchase = null;
         this.resetPurchaseForm();
         this.showPurchaseForm = true;
     },
     
-    editPurchase(purchase) {
+    async editPurchase(purchase) {
         this.editingPurchase = purchase;
         this.purchaseForm = { ...purchase };
         this.showPurchaseForm = true;
     },
     
-    savePurchase() {
-        if (this.editingPurchase) {
-            const index = this.purchases.findIndex(p => p.id === this.purchaseForm.id);
-            if (index !== -1) {
-                this.purchases[index] = { ...this.purchaseForm };
+    async savePurchase() {
+        try {
+            if (this.editingPurchase && this.purchaseForm.id) {
+                // Update
+                await api.request('put', `/purchases/${this.purchaseForm.id}`, this.purchaseForm);
+            } else {
+                // Create
+                await api.request('post', '/purchases', this.purchaseForm);
             }
-        } else {
-            const newPurchase = {
-                ...this.purchaseForm,
-                id: Date.now(),
-                createdAt: Date.now(),
-                status: 'pending'
-            };
-            this.purchases.push(newPurchase);
+            
+            this.showPurchaseForm = false;
+            this.editingPurchase = null;
+            this.resetPurchaseForm();
+            await this.loadInventory();
+        } catch (error) {
+            console.error('Error saving purchase:', error);
+            alert('Error saving purchase. Please try again.');
         }
-        
-        this.savePurchases();
-        this.showPurchaseForm = false;
-        this.editingPurchase = null;
-        this.resetPurchaseForm();
     },
     
-    receivePurchase(purchaseId) {
-        const purchase = this.purchases.find(p => p.id === purchaseId);
-        if (purchase) {
-            purchase.status = 'received';
-            purchase.receivedDate = Date.now();
-            
-            // Update inventory stock
-            purchase.items.forEach(item => {
-                this.updateStock(
-                    item.inventoryId,
-                    item.quantity,
-                    'add',
-                    `Purchase #${purchase.id} from ${purchase.supplier}`
-                );
-            });
-            
-            this.savePurchases();
+    async receivePurchase(purchaseId) {
+        try {
+            const purchase = this.purchases.find(p => p.id === purchaseId);
+            if (purchase) {
+                // Update purchase status to delivered
+                await api.request('patch', `/purchases/${purchaseId}/status`, {
+                    status: 'delivered',
+                    delivery_date: new Date().toISOString().split('T')[0]
+                });
+                
+                await this.loadInventory();
+            }
+        } catch (error) {
+            console.error('Error receiving purchase:', error);
+            alert('Error receiving purchase. Please try again.');
         }
     },
     
     resetPurchaseForm() {
         this.purchaseForm = {
-            supplier: '',
+            supplier_id: '',
             items: [],
             totalCost: 0,
             purchaseDate: new Date().toISOString().split('T')[0],
@@ -355,11 +261,10 @@ export const createInventoryModule = (state) => ({
     
     addPurchaseItem() {
         this.purchaseForm.items.push({
-            inventoryId: '',
-            name: '',
+            inventory_id: '',
             quantity: 0,
-            unit: '',
-            cost: 0
+            unit_cost: 0,
+            notes: ''
         });
     },
     
@@ -369,197 +274,252 @@ export const createInventoryModule = (state) => ({
     
     calculatePurchaseTotal() {
         this.purchaseForm.totalCost = this.purchaseForm.items.reduce(
-            (sum, item) => sum + (item.cost * item.quantity), 0
+            (sum, item) => sum + (item.unit_cost * item.quantity), 0
         );
     },
     
     // Supplier management
-    addSupplier() {
+    async addSupplier() {
         this.editingSupplier = null;
         this.resetSupplierForm();
         this.showSupplierForm = true;
     },
     
-    editSupplier(supplier) {
+    async editSupplier(supplier) {
         this.editingSupplier = supplier;
         this.supplierForm = { ...supplier };
         this.showSupplierForm = true;
     },
     
-    saveSupplier() {
-        if (this.editingSupplier) {
-            const index = this.suppliers.findIndex(s => s.id === this.supplierForm.id);
-            if (index !== -1) {
-                this.suppliers[index] = { ...this.supplierForm };
+    async saveSupplier() {
+        try {
+            if (this.editingSupplier && this.supplierForm.id) {
+                // Update
+                await api.request('put', `/suppliers/${this.supplierForm.id}`, this.supplierForm);
+            } else {
+                // Create
+                await api.request('post', '/suppliers', this.supplierForm);
             }
-        } else {
-            const newSupplier = {
-                ...this.supplierForm,
-                id: Date.now(),
-                createdAt: Date.now()
-            };
-            this.suppliers.push(newSupplier);
+            
+            this.showSupplierForm = false;
+            this.editingSupplier = null;
+            this.resetSupplierForm();
+            await this.loadInventory();
+        } catch (error) {
+            console.error('Error saving supplier:', error);
+            alert('Error saving supplier. Please try again.');
         }
-        
-        this.saveSuppliers();
-        this.showSupplierForm = false;
-        this.editingSupplier = null;
-        this.resetSupplierForm();
     },
     
-    deleteSupplier(id) {
+    async deleteSupplier(id) {
         if (confirm('Are you sure you want to delete this supplier?')) {
-            this.suppliers = this.suppliers.filter(s => s.id !== id);
-            this.saveSuppliers();
+            try {
+                await api.request('delete', `/suppliers/${id}`);
+                await this.loadInventory();
+            } catch (error) {
+                console.error('Error deleting supplier:', error);
+                alert('Error deleting supplier. Please try again.');
+            }
         }
     },
     
     resetSupplierForm() {
         this.supplierForm = {
             name: '',
-            contact: '',
+            contact_person: '',
             phone: '',
             email: '',
             address: '',
-            paymentTerms: '',
+            payment_terms: '',
             notes: ''
         };
     },
     
     // Waste management
-    addWaste() {
+    async addWaste() {
         this.resetWasteForm();
         this.showWasteForm = true;
     },
     
-    saveWaste() {
-        const newWaste = {
-            ...this.wasteForm,
-            id: Date.now(),
-            createdAt: Date.now()
-        };
-        
-        this.waste.push(newWaste);
-        
-        // Deduct from inventory
-        const inventoryItem = this.inventory.find(item => item.id === this.wasteForm.item);
-        if (inventoryItem) {
-            this.updateStock(
-                inventoryItem.id,
-                this.wasteForm.quantity,
-                'subtract',
-                `Waste - ${this.wasteForm.reason}`
-            );
+    async saveWaste() {
+        try {
+            await api.request('post', '/waste', this.wasteForm);
+            
+            this.showWasteForm = false;
+            this.resetWasteForm();
+            await this.loadInventory();
+        } catch (error) {
+            console.error('Error saving waste:', error);
+            alert('Error saving waste. Please try again.');
         }
-        
-        this.saveWaste();
-        this.showWasteForm = false;
-        this.resetWasteForm();
     },
     
     resetWasteForm() {
         this.wasteForm = {
-            item: '',
+            inventory_id: '',
             quantity: 0,
             reason: '',
-            date: new Date().toISOString().split('T')[0],
+            waste_date: new Date().toISOString().split('T')[0],
             notes: ''
         };
     },
     
     // Inventory alerts
-    updateInventoryAlerts() {
-        this.inventoryAlerts = this.inventory.filter(item => 
-            item.currentStock <= item.minStock
-        );
+    async updateInventoryAlerts() {
+        try {
+            const lowStockRes = await api.request('get', '/inventory/alerts/low-stock');
+            this.inventoryAlerts = lowStockRes.success ? (lowStockRes.data.data || lowStockRes.data) : [];
+        } catch (error) {
+            console.error('Error updating inventory alerts:', error);
+            // Fallback to local calculation
+            this.inventoryAlerts = this.inventory.filter(item => 
+                item.current_stock <= item.min_stock
+            );
+        }
     },
     
-    getLowStockItems() {
-        return this.inventory.filter(item => item.currentStock <= item.minStock);
+    async getLowStockItems() {
+        try {
+            const response = await api.request('get', '/inventory/alerts/low-stock');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting low stock items:', error);
+            return this.inventory.filter(item => item.current_stock <= item.min_stock);
+        }
     },
     
-    getOutOfStockItems() {
-        return this.inventory.filter(item => item.currentStock <= 0);
+    async getOutOfStockItems() {
+        try {
+            const response = await api.request('get', '/inventory?status=out_of_stock');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting out of stock items:', error);
+            return this.inventory.filter(item => item.current_stock <= 0);
+        }
+    },
+    
+    async getExpiringItems(days = 30) {
+        try {
+            const response = await api.request('get', `/inventory/alerts/expiring?days=${days}`);
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting expiring items:', error);
+            return [];
+        }
     },
     
     // Reports
-    generateInventoryReport() {
-        const report = {
-            totalItems: this.inventory.length,
-            totalValue: this.inventory.reduce((sum, item) => sum + (item.currentStock * item.cost), 0),
-            lowStockItems: this.getLowStockItems().length,
-            outOfStockItems: this.getOutOfStockItems().length,
-            categories: this.getInventoryCategories().map(category => {
-                const items = this.inventory.filter(item => item.category === category);
-                return {
-                    category,
-                    count: items.length,
-                    value: items.reduce((sum, item) => sum + (item.currentStock * item.cost), 0)
-                };
-            }),
-            topSuppliers: this.getTopSuppliers(),
-            recentTransactions: this.getStockTransactions().slice(-10)
-        };
-        
-        return report;
+    async generateInventoryReport() {
+        try {
+            const report = {
+                totalItems: this.inventory.length,
+                totalValue: this.inventory.reduce((sum, item) => sum + (item.current_stock * item.cost_per_unit), 0),
+                lowStockItems: (await this.getLowStockItems()).length,
+                outOfStockItems: (await this.getOutOfStockItems()).length,
+                categories: this.getInventoryCategories().map(category => {
+                    const items = this.inventory.filter(item => item.category === category);
+                    return {
+                        category,
+                        count: items.length,
+                        value: items.reduce((sum, item) => sum + (item.current_stock * item.cost_per_unit), 0)
+                    };
+                }),
+                topSuppliers: await this.getTopSuppliers(),
+                recentTransactions: await this.getStockTransactions()
+            };
+            
+            return report;
+        } catch (error) {
+            console.error('Error generating inventory report:', error);
+            return null;
+        }
     },
     
-    getTopSuppliers() {
-        const supplierStats = {};
-        this.inventory.forEach(item => {
-            if (item.supplier) {
-                if (!supplierStats[item.supplier]) {
-                    supplierStats[item.supplier] = { count: 0, value: 0 };
+    async getTopSuppliers() {
+        try {
+            const response = await api.request('get', '/suppliers/performance');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting top suppliers:', error);
+            // Fallback to local calculation
+            const supplierStats = {};
+            this.inventory.forEach(item => {
+                if (item.supplier_id) {
+                    const supplier = this.suppliers.find(s => s.id === item.supplier_id);
+                    if (supplier) {
+                        if (!supplierStats[supplier.name]) {
+                            supplierStats[supplier.name] = { count: 0, value: 0 };
+                        }
+                        supplierStats[supplier.name].count++;
+                        supplierStats[supplier.name].value += item.current_stock * item.cost_per_unit;
+                    }
                 }
-                supplierStats[item.supplier].count++;
-                supplierStats[item.supplier].value += item.currentStock * item.cost;
-            }
-        });
-        
-        return Object.entries(supplierStats)
-            .map(([name, stats]) => ({ name, ...stats }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 5);
+            });
+            
+            return Object.entries(supplierStats)
+                .map(([name, stats]) => ({ name, ...stats }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 5);
+        }
     },
     
     // Export/Import
-    exportInventoryData() {
-        const data = {
-            inventory: this.inventory,
-            suppliers: this.suppliers,
-            purchases: this.purchases,
-            waste: this.waste,
-            transactions: this.getStockTransactions(),
-            exportDate: new Date().toISOString()
-        };
-        
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+    async exportInventoryData() {
+        try {
+            const data = {
+                inventory: this.inventory,
+                suppliers: this.suppliers,
+                purchases: this.purchases,
+                waste: this.waste,
+                transactions: await this.getStockTransactions(),
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error exporting inventory data:', error);
+            alert('Error exporting data. Please try again.');
+        }
     },
     
-    importInventoryData(file) {
+    async importInventoryData(file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
                 
-                if (data.inventory) this.inventory = data.inventory;
-                if (data.suppliers) this.suppliers = data.suppliers;
-                if (data.purchases) this.purchases = data.purchases;
-                if (data.waste) this.waste = data.waste;
+                // Import data through API
+                if (data.inventory) {
+                    for (const item of data.inventory) {
+                        await api.request('post', '/inventory', item);
+                    }
+                }
+                if (data.suppliers) {
+                    for (const supplier of data.suppliers) {
+                        await api.request('post', '/suppliers', supplier);
+                    }
+                }
+                if (data.purchases) {
+                    for (const purchase of data.purchases) {
+                        await api.request('post', '/purchases', purchase);
+                    }
+                }
+                if (data.waste) {
+                    for (const waste of data.waste) {
+                        await api.request('post', '/waste', waste);
+                    }
+                }
                 
-                this.saveInventory();
-                this.saveSuppliers();
-                this.savePurchases();
-                this.saveWaste();
-                
+                await this.loadInventory();
                 alert('Inventory data imported successfully!');
             } catch (error) {
+                console.error('Error importing data:', error);
                 alert('Error importing data: ' + error.message);
             }
         };
@@ -699,5 +659,139 @@ export const createInventoryModule = (state) => ({
                 createdAt: Date.now()
             }
         ];
+    },
+    
+    // Get inventory categories
+    async getInventoryCategories() {
+        try {
+            const response = await api.request('get', '/inventory/categories');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting inventory categories:', error);
+            // Fallback to local categories
+            const categories = [...new Set(this.inventory.map(item => item.category))];
+            return categories.sort();
+        }
+    },
+    
+    // Get waste reasons
+    async getWasteReasons() {
+        try {
+            const response = await api.request('get', '/waste/reasons');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting waste reasons:', error);
+            return ['Expired', 'Damaged', 'Quality Issue', 'Overstock', 'Other'];
+        }
+    },
+    
+    // Get waste categories
+    async getWasteCategories() {
+        try {
+            const response = await api.request('get', '/waste/categories');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting waste categories:', error);
+            return ['Food Waste', 'Packaging', 'Equipment', 'Other'];
+        }
+    },
+    
+    // Get purchase statistics
+    async getPurchaseStats() {
+        try {
+            const response = await api.request('get', '/purchases/stats');
+            return response.success ? (response.data.data || response.data) : {};
+        } catch (error) {
+            console.error('Error getting purchase stats:', error);
+            return {};
+        }
+    },
+    
+    // Get waste statistics
+    async getWasteStats() {
+        try {
+            const response = await api.request('get', '/waste/stats');
+            return response.success ? (response.data.data || response.data) : {};
+        } catch (error) {
+            console.error('Error getting waste stats:', error);
+            return {};
+        }
+    },
+    
+    // Get overdue purchases
+    async getOverduePurchases() {
+        try {
+            const response = await api.request('get', '/purchases/alerts/overdue');
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting overdue purchases:', error);
+            return [];
+        }
+    },
+    
+    // Get filtered inventory with API support
+    async getFilteredInventory() {
+        try {
+            const params = new URLSearchParams();
+            
+            if (this.inventorySearchTerm) {
+                params.append('search', this.inventorySearchTerm);
+            }
+            if (this.inventoryFilterCategory !== 'all') {
+                params.append('category', this.inventoryFilterCategory);
+            }
+            params.append('sort_by', this.inventorySortBy);
+            params.append('sort_order', this.inventorySortOrder);
+            
+            const response = await api.request('get', `/inventory?${params.toString()}`);
+            return response.success ? (response.data.data || response.data) : [];
+        } catch (error) {
+            console.error('Error getting filtered inventory:', error);
+            // Fallback to local filtering
+            let filtered = this.inventory;
+            
+            if (this.inventorySearchTerm) {
+                const search = this.inventorySearchTerm.toLowerCase();
+                filtered = filtered.filter(item => 
+                    item.name.toLowerCase().includes(search) ||
+                    item.category.toLowerCase().includes(search)
+                );
+            }
+            
+            if (this.inventoryFilterCategory !== 'all') {
+                filtered = filtered.filter(item => item.category === this.inventoryFilterCategory);
+            }
+            
+            filtered.sort((a, b) => {
+                let aVal = a[this.inventorySortBy];
+                let bVal = b[this.inventorySortBy];
+                
+                if (this.inventorySortBy === 'name' || this.inventorySortBy === 'category') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (this.inventorySortOrder === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            return filtered;
+        }
+    },
+    
+    // Initialize inventory module
+    async initInventory() {
+        await this.loadInventory();
+        await this.updateInventoryAlerts();
+    }
+});
+
+// Initialize inventory module when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.inventory) {
+        window.inventory.initInventory();
     }
 }); 

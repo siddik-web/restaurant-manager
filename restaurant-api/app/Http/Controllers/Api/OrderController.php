@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Recipe;
+use App\Models\Inventory;
+use App\Models\StockTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -143,6 +145,16 @@ class OrderController extends Controller
             // Create order items
             foreach ($items as $item) {
                 $order->orderItems()->create($item);
+            }
+
+            // Deduct inventory stock for each recipe
+            foreach ($validated['items'] as $item) {
+                $recipe = Recipe::find($item['recipe_id']);
+                if ($recipe && $recipe->ingredients) {
+                    foreach ($recipe->ingredients as $ingredient) {
+                        $this->deductInventoryStock($ingredient, $item['quantity'], $order->id);
+                    }
+                }
             }
 
             // Update table status if dine-in
@@ -323,5 +335,68 @@ class OrderController extends Controller
             'message' => 'Order completed successfully',
             'data' => $order,
         ]);
+    }
+
+    /**
+     * Deduct inventory stock for recipe ingredients
+     */
+    private function deductInventoryStock($ingredient, $recipeQuantity, $orderId = null)
+    {
+        try {
+            // Find inventory item by name (case-insensitive)
+            $inventory = Inventory::whereRaw('LOWER(name) = ?', [strtolower($ingredient['name'])])
+                ->orWhere('sku', $ingredient['name'])
+                ->first();
+
+            if (!$inventory) {
+                // Log missing inventory item
+                \Log::warning("Inventory item not found for ingredient: {$ingredient['name']}");
+                return;
+            }
+
+            $requiredQuantity = ($ingredient['quantity'] ?? 0) * $recipeQuantity;
+            
+            if ($requiredQuantity <= 0) {
+                return;
+            }
+
+            // Check if enough stock is available
+            if ($inventory->current_stock < $requiredQuantity) {
+                \Log::warning("Insufficient stock for {$inventory->name}. Required: {$requiredQuantity}, Available: {$inventory->current_stock}");
+                // Still deduct what's available
+                $requiredQuantity = $inventory->current_stock;
+            }
+
+            if ($requiredQuantity <= 0) {
+                return;
+            }
+
+            // Update inventory stock
+            $oldStock = $inventory->current_stock;
+            $newStock = $oldStock - $requiredQuantity;
+
+            $inventory->update([
+                'current_stock' => $newStock,
+                'last_updated' => now(),
+            ]);
+
+            // Create stock transaction
+            StockTransaction::create([
+                'inventory_id' => $inventory->id,
+                'transaction_type' => 'sale',
+                'quantity' => $requiredQuantity,
+                'previous_stock' => $oldStock,
+                'new_stock' => $newStock,
+                'reference_type' => 'order',
+                'reference_id' => $orderId,
+                'notes' => "Stock used for recipe: {$ingredient['name']}",
+                'transaction_date' => now(),
+                'unit_cost' => $inventory->cost_per_unit,
+                'total_value' => $requiredQuantity * $inventory->cost_per_unit,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error("Error deducting inventory stock: " . $e->getMessage());
+        }
     }
 }
