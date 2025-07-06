@@ -7,6 +7,7 @@ import { createOrdersModule } from './orders.js';
 import { createTablesModule } from './tables.js';
 import { createChefsStationsModule } from './chefs-stations.js';
 import { createSettingsModule } from './settings.js';
+import { createInventoryModule } from './inventory.js';
 
 // Create the main Alpine.js component
 document.addEventListener('alpine:init', () => {
@@ -20,6 +21,7 @@ document.addEventListener('alpine:init', () => {
         const tablesModule = createTablesModule(state);
         const chefsStationsModule = createChefsStationsModule(state);
         const settingsModule = createSettingsModule(state);
+        const inventoryModule = createInventoryModule(state);
         
         // Compose all modules into a single Alpine.js component
         return {
@@ -32,6 +34,7 @@ document.addEventListener('alpine:init', () => {
             ...tablesModule,
             ...chefsStationsModule,
             ...settingsModule,
+            ...inventoryModule,
             
             // Additional utility methods that span multiple modules
             async refreshAllData() {
@@ -67,6 +70,11 @@ document.addEventListener('alpine:init', () => {
                     errors.push('Settings data is invalid');
                 }
                 
+                // Validate inventory
+                if (!Array.isArray(state.inventory)) {
+                    errors.push('Inventory data is invalid');
+                }
+                
                 return errors;
             },
             
@@ -81,6 +89,10 @@ document.addEventListener('alpine:init', () => {
                         chefs: state.chefs,
                         stations: state.stations,
                         recipeCategories: state.recipeCategories,
+                        inventory: state.inventory,
+                        suppliers: state.suppliers,
+                        purchases: state.purchases,
+                        waste: state.waste,
                         exportDate: new Date().toISOString(),
                         version: '1.0'
                     };
@@ -120,6 +132,10 @@ document.addEventListener('alpine:init', () => {
                     state.chefs = Array.isArray(data.chefs) ? data.chefs : [];
                     state.stations = Array.isArray(data.stations) ? data.stations : [];
                     state.recipeCategories = Array.isArray(data.recipeCategories) ? data.recipeCategories : [];
+                    state.inventory = Array.isArray(data.inventory) ? data.inventory : [];
+                    state.suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
+                    state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
+                    state.waste = Array.isArray(data.waste) ? data.waste : [];
                     
                     // Save all imported data
                     state.saveAllData();
@@ -148,6 +164,10 @@ document.addEventListener('alpine:init', () => {
                         localStorage.removeItem('restaurant_chefs');
                         localStorage.removeItem('restaurant_stations');
                         localStorage.removeItem('restaurant_recipe_categories');
+                        localStorage.removeItem('restaurant_inventory');
+                        localStorage.removeItem('restaurant_suppliers');
+                        localStorage.removeItem('restaurant_purchases');
+                        localStorage.removeItem('restaurant_waste');
                         
                         // Reset all data arrays
                         state.recipes = [];
@@ -156,6 +176,10 @@ document.addEventListener('alpine:init', () => {
                         state.chefs = [];
                         state.stations = [];
                         state.recipeCategories = ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Pizza', 'Salad', 'Soup', 'Pasta', 'Seafood', 'Meat', 'Vegetarian'];
+                        state.inventory = [];
+                        state.suppliers = [];
+                        state.purchases = [];
+                        state.waste = [];
                         
                         // Reset settings to defaults
                         state.settings = settingsModule.getDefaultSettings();
@@ -176,6 +200,10 @@ document.addEventListener('alpine:init', () => {
                         state.showRecipeForm = false;
                         state.showTableForm = false;
                         state.showBackup = false;
+                        state.showInventoryForm = false;
+                        state.showPurchaseForm = false;
+                        state.showSupplierForm = false;
+                        state.showWasteForm = false;
                         
                         alert('All data has been cleared successfully.');
                     } catch (error) {
