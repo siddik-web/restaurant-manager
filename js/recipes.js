@@ -51,8 +51,12 @@ export const createRecipesModule = () => ({
                     this.recipes.push(response.data);
                 }
 
-                // Save to localStorage as fallback
-                localStorage.setItem('restaurant_recipes', JSON.stringify(this.recipes));
+                // Cache for offline use
+                if (typeof this.cacheAllData === 'function') {
+                    this.cacheAllData();
+                } else {
+                    localStorage.setItem('restaurant_recipes', JSON.stringify(this.recipes));
+                }
                 
                 this.showRecipeForm = false;
                 this.editingRecipe = null;

@@ -1,6 +1,6 @@
-// LEGACY: This monolith is no longer loaded by index.html.
-// Live entrypoint is js/app.js (ES modules). Keep this file only as a reference
-// until the modular migration is fully validated, then delete it.
+// LEGACY — NOT LOADED by index.html. The live app is js/app.js (ES modules).
+// This file uses localStorage only and does not connect to the Laravel API.
+// Kept for reference during migration; do not add new features here.
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('app', () => ({

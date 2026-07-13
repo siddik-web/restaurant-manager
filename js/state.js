@@ -2,6 +2,7 @@
 // Main state management for Alpine.js app
 
 import api from './api.js';
+import { normalizeOrder, normalizeSettings } from './transform.js';
 
 export const createAppState = () => ({
     // App state
@@ -9,6 +10,11 @@ export const createAppState = () => ({
     language: 'en',
     direction: 'ltr',
     orderType: 'dine-in',
+
+    // API connection state
+    apiStatus: 'unknown',
+    apiStatusMessage: '',
+    dataSource: 'unknown',
     
     // POS State Variables
     posSearchTerm: '',
@@ -400,10 +406,13 @@ export const createAppState = () => ({
     // Initialize app
     async initApp() {
         try {
-            // Load all data from API/localStorage
+            api.onStatusChange((status, message) => {
+                this.apiStatus = status;
+                this.apiStatusMessage = message;
+            });
+
             await this.loadAllData();
-            
-            // Validate and clean data on startup
+
             this.validateAndCleanData();
             
             // Request notification permission
@@ -440,110 +449,126 @@ export const createAppState = () => ({
             
         } catch (error) {
             console.error('Error initializing app:', error);
+            if (this.apiStatus === 'unknown') {
+                this.apiStatus = 'unavailable';
+                this.apiStatusMessage = error.message || 'Failed to load data from API';
+            }
         }
     },
 
-    // Load all data from API/localStorage
-    async loadAllData() {
+    getApiStatusLabel() {
+        switch (this.apiStatus) {
+            case 'connected': return this.language === 'ar' ? 'متصل بالخادم' : 'Server connected';
+            case 'offline': return this.language === 'ar' ? 'غير متصل — بيانات محلية' : 'Offline — local cache';
+            case 'unavailable': return this.language === 'ar' ? 'الخادم غير متاح' : 'Server unavailable';
+            default: return this.language === 'ar' ? 'جاري الاتصال...' : 'Connecting...';
+        }
+    },
+
+    async retryApiConnection() {
+        this.apiStatus = 'unknown';
+        this.apiStatusMessage = '';
         try {
-            // Load recipes
-            const recipesResponse = await api.getRecipes();
-            if (recipesResponse.success) {
-                this.recipes = recipesResponse.data.data || recipesResponse.data;
-            } else {
-                this.loadRecipesFromLocalStorage();
-            }
-
-            // Load orders
-            const ordersResponse = await api.getOrders();
-            if (ordersResponse.success) {
-                this.orders = ordersResponse.data.data || ordersResponse.data;
-            } else {
-                this.loadOrdersFromLocalStorage();
-            }
-
-            // Load tables
-            const tablesResponse = await api.getTables();
-            if (tablesResponse.success) {
-                this.tables = tablesResponse.data.data || tablesResponse.data;
-            } else {
-                this.loadTablesFromLocalStorage();
-            }
-
-            // Load chefs
-            const chefsResponse = await api.getChefs();
-            if (chefsResponse.success) {
-                this.chefs = chefsResponse.data.data || chefsResponse.data;
-            } else {
-                this.loadChefsFromLocalStorage();
-            }
-
-            // Load stations
-            const stationsResponse = await api.getStations();
-            if (stationsResponse.success) {
-                this.stations = stationsResponse.data.data || stationsResponse.data;
-            } else {
-                this.loadStationsFromLocalStorage();
-            }
-
-            // Load settings
-            const settingsResponse = await api.getSettings();
-            if (settingsResponse.success) {
-                this.settings = settingsResponse.data.data || settingsResponse.data;
-            } else {
-                this.loadSettingsFromLocalStorage();
-            }
-
-            // Load inventory domain (stock, suppliers, purchases, waste)
-            if (typeof this.loadInventory === 'function') {
-                await this.loadInventory();
-            }
-
+            await this.loadAllData();
+            this.validateAndCleanData();
         } catch (error) {
-            console.error('Error loading data from API:', error);
-            // Fallback to localStorage
-            this.loadAllFromLocalStorage();
+            console.error('API reconnect failed:', error);
         }
     },
 
-    // LocalStorage fallback methods
-    loadRecipesFromLocalStorage() {
+    async loadAllData() {
+        const connected = await api.checkConnection();
+
+        if (!navigator.onLine) {
+            this.dataSource = 'offline';
+            this.loadAllFromLocalStorage(false);
+            return;
+        }
+
+        if (!connected) {
+            this.dataSource = 'unavailable';
+            this.loadAllFromLocalStorage(false);
+            throw new Error(this.apiStatusMessage || 'API unavailable');
+        }
+
+        this.dataSource = 'api';
+
+        const recipesResponse = await api.getRecipes();
+        this.recipes = api.unwrapList(recipesResponse);
+
+        const ordersResponse = await api.getOrders();
+        this.orders = api.unwrapList(ordersResponse).map(normalizeOrder);
+
+        const tablesResponse = await api.getTables();
+        this.tables = api.unwrapList(tablesResponse);
+
+        const chefsResponse = await api.getChefs();
+        this.chefs = api.unwrapList(chefsResponse);
+
+        const stationsResponse = await api.getStations();
+        this.stations = api.unwrapList(stationsResponse);
+
+        const settingsResponse = await api.getRestaurantSettings();
+        this.settings = normalizeSettings(settingsResponse.data);
+
+        if (typeof this.loadInventory === 'function') {
+            await this.loadInventory();
+        }
+
+        this.cacheAllData();
+    },
+
+    cacheAllData() {
+        api.cacheToLocalStorage('restaurant_recipes', this.recipes);
+        api.cacheToLocalStorage('restaurant_orders', this.orders);
+        api.cacheToLocalStorage('restaurant_tables', this.tables);
+        api.cacheToLocalStorage('restaurant_chefs', this.chefs);
+        api.cacheToLocalStorage('restaurant_stations', this.stations);
+        api.cacheToLocalStorage('restaurant_settings', this.settings);
+        if (this.inventory) api.cacheToLocalStorage('restaurant_inventory', this.inventory);
+        if (this.suppliers) api.cacheToLocalStorage('restaurant_suppliers', this.suppliers);
+        if (this.purchases) api.cacheToLocalStorage('restaurant_purchases', this.purchases);
+        if (this.waste) api.cacheToLocalStorage('restaurant_waste', this.waste);
+    },
+
+    // LocalStorage fallback — useDefaults=false avoids injecting demo data when API is down
+    loadRecipesFromLocalStorage(useDefaults = true) {
         const savedRecipes = localStorage.getItem('restaurant_recipes');
-        this.recipes = savedRecipes ? JSON.parse(savedRecipes) : this.getDefaultRecipes();
+        this.recipes = savedRecipes ? JSON.parse(savedRecipes) : (useDefaults ? this.getDefaultRecipes() : []);
     },
 
-    loadOrdersFromLocalStorage() {
+    loadOrdersFromLocalStorage(useDefaults = true) {
         const savedOrders = localStorage.getItem('restaurant_orders');
-        this.orders = savedOrders ? JSON.parse(savedOrders) : [];
+        this.orders = savedOrders ? JSON.parse(savedOrders).map(normalizeOrder) : [];
     },
 
-    loadTablesFromLocalStorage() {
+    loadTablesFromLocalStorage(useDefaults = true) {
         const savedTables = localStorage.getItem('restaurant_tables');
-        this.tables = savedTables ? JSON.parse(savedTables) : this.getDefaultTables();
+        this.tables = savedTables ? JSON.parse(savedTables) : (useDefaults ? this.getDefaultTables() : []);
     },
 
-    loadChefsFromLocalStorage() {
+    loadChefsFromLocalStorage(useDefaults = true) {
         const savedChefs = localStorage.getItem('restaurant_chefs');
-        this.chefs = savedChefs ? JSON.parse(savedChefs) : this.getDefaultChefs();
+        this.chefs = savedChefs ? JSON.parse(savedChefs) : (useDefaults ? this.getDefaultChefs() : []);
     },
 
-    loadStationsFromLocalStorage() {
+    loadStationsFromLocalStorage(useDefaults = true) {
         const savedStations = localStorage.getItem('restaurant_stations');
-        this.stations = savedStations ? JSON.parse(savedStations) : this.getDefaultStations();
+        this.stations = savedStations ? JSON.parse(savedStations) : (useDefaults ? this.getDefaultStations() : []);
     },
 
-    loadSettingsFromLocalStorage() {
+    loadSettingsFromLocalStorage(useDefaults = true) {
         const savedSettings = localStorage.getItem('restaurant_settings');
-        this.settings = savedSettings ? JSON.parse(savedSettings) : this.getDefaultSettings();
+        this.settings = savedSettings ? JSON.parse(savedSettings) : (useDefaults ? this.getDefaultSettings() : {});
     },
 
-    loadAllFromLocalStorage() {
-        this.loadRecipesFromLocalStorage();
-        this.loadOrdersFromLocalStorage();
-        this.loadTablesFromLocalStorage();
-        this.loadChefsFromLocalStorage();
-        this.loadStationsFromLocalStorage();
-        this.loadSettingsFromLocalStorage();
+    loadAllFromLocalStorage(useDefaults = true) {
+        this.loadRecipesFromLocalStorage(useDefaults);
+        this.loadOrdersFromLocalStorage(useDefaults);
+        this.loadTablesFromLocalStorage(useDefaults);
+        this.loadChefsFromLocalStorage(useDefaults);
+        this.loadStationsFromLocalStorage(useDefaults);
+        this.loadSettingsFromLocalStorage(useDefaults);
         this.inventory = JSON.parse(localStorage.getItem('restaurant_inventory') || '[]');
         this.suppliers = JSON.parse(localStorage.getItem('restaurant_suppliers') || '[]');
         this.purchases = JSON.parse(localStorage.getItem('restaurant_purchases') || '[]');
@@ -654,23 +679,25 @@ export const createAppState = () => ({
 
     // Data validation and cleanup
     validateAndCleanData() {
-        // Clean up orders (remove invalid ones)
-        this.orders = this.orders.filter(order => 
-            order && order.id && order.items && Array.isArray(order.items)
+        this.orders = this.orders.filter((order) => {
+            if (!order || !order.id) return false;
+            const items = order.items || order.orderItems;
+            return Array.isArray(items);
+        }).map(normalizeOrder);
+
+        this.recipes = this.recipes.filter((recipe) =>
+            recipe && recipe.id && recipe.name && parseFloat(recipe.price) > 0
         );
-        
-        // Clean up recipes (remove invalid ones)
-        this.recipes = this.recipes.filter(recipe => 
-            recipe && recipe.id && recipe.name && recipe.price > 0
-        );
-        
-        // Clean up tables (remove invalid ones)
-        this.tables = this.tables.filter(table => 
+
+        this.tables = this.tables.filter((table) =>
             table && table.id && table.number
         );
-        
-        // Save cleaned data
-        this.saveAllData();
+
+        if (this.dataSource === 'api') {
+            this.cacheAllData();
+        } else if (this.dataSource === 'offline') {
+            this.saveAllData();
+        }
     },
 
     // Save all data to localStorage (fallback)

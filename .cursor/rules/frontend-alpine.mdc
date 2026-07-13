@@ -33,12 +33,15 @@ Load order: module script first, then Alpine CDN with `defer` (modules run befor
 ## API client
 
 ```javascript
-// Prefer ApiClient helpers
 await api.getRecipes();
 await api.createOrder(payload);
+await api.checkConnection(); // health probe — sets connectionStatus
 ```
 
-Extend `ApiClient` when adding endpoints. Keep offline queue + localStorage mapping updated for new resources.
+- `api.connectionStatus`: `connected` | `offline` | `unavailable` | `unknown`
+- localStorage is a **cache for offline mode only** — not the primary store when online
+- Field names are normalized in `js/transform.js` (camelCase ↔ snake_case)
+- Extend `ApiClient` when adding endpoints; update `transform.js` for new entities
 
 ## UI
 

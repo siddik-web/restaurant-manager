@@ -2,43 +2,56 @@
 // Settings management module for Alpine.js
 
 import api from './api.js';
+import { normalizeSettings } from './transform.js';
 
 export const createSettingsModule = () => ({
     // Settings Management Functions
     async loadSettings() {
         try {
-            const response = await api.getSettings();
-            if (response.success) {
-                this.settings = response.data.data || response.data;
-            } else {
-                this.loadSettingsFromLocalStorage();
+            if (!navigator.onLine || api.connectionStatus === 'offline') {
+                this.loadSettingsFromLocalStorage(false);
+                return;
             }
+
+            const response = await api.getRestaurantSettings();
+            this.settings = normalizeSettings(response.data);
+            api.cacheToLocalStorage('restaurant_settings', this.settings);
         } catch (error) {
             console.error('Error loading settings:', error);
-            this.loadSettingsFromLocalStorage();
+            if (api.canUseLocalFallback()) {
+                this.loadSettingsFromLocalStorage(false);
+            } else {
+                throw error;
+            }
         }
     },
 
-    loadSettingsFromLocalStorage() {
+    loadSettingsFromLocalStorage(useDefaults = true) {
         const savedSettings = localStorage.getItem('restaurant_settings');
-        this.settings = savedSettings ? JSON.parse(savedSettings) : this.getDefaultSettings();
+        this.settings = savedSettings ? JSON.parse(savedSettings) : (useDefaults ? this.getDefaultSettings() : {});
     },
 
     async saveSettings() {
         try {
             const response = await api.updateSettings(this.settings);
             if (response.success) {
-                // Save to localStorage as fallback
-                localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
+                if (typeof this.cacheAllData === 'function') {
+                    this.cacheAllData();
+                } else {
+                    api.cacheToLocalStorage('restaurant_settings', this.settings);
+                }
                 alert('Settings saved successfully!');
             } else {
                 alert('Error saving settings: ' + (response.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error saving settings:', error);
-            // Fallback to localStorage only
-            localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
-            alert('Settings saved to local storage. Some features may not sync with server.');
+            if (api.canUseLocalFallback()) {
+                api.cacheToLocalStorage('restaurant_settings', this.settings);
+                alert('Settings saved to local cache (offline). They will sync when the server is available.');
+            } else {
+                alert('Error saving settings: ' + (error.message || 'Server unavailable'));
+            }
         }
     },
 

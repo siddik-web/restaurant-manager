@@ -8,6 +8,7 @@ import { createTablesModule } from './tables.js';
 import { createChefsStationsModule } from './chefs-stations.js';
 import { createSettingsModule } from './settings.js';
 import { createInventoryModule } from './inventory.js';
+import api from './api.js';
 
 // Register before Alpine starts (module scripts run before deferred classic scripts)
 document.addEventListener('alpine:init', () => {
@@ -180,7 +181,8 @@ document.addEventListener('alpine:init', () => {
                 online: navigator.onLine,
                 localStorage: false,
                 api: false,
-                dataIntegrity: false
+                dataIntegrity: false,
+                dataSource: this.dataSource,
             };
 
             try {
@@ -192,8 +194,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             try {
-                const response = await fetch('/api/health');
-                health.api = response.ok;
+                health.api = await api.checkConnection();
             } catch (error) {
                 console.error('API not available:', error);
             }

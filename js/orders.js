@@ -2,6 +2,7 @@
 // Order management module for Alpine.js
 
 import api from './api.js';
+import { normalizeOrder } from './transform.js';
 
 export const createOrdersModule = () => ({
     // POS Functions
@@ -97,7 +98,7 @@ export const createOrdersModule = () => ({
             const response = await api.createOrder(orderData);
             
             if (response.success) {
-                const newOrder = response.data;
+                const newOrder = normalizeOrder(response.data);
                 this.orders.push(newOrder);
                 
                 // Update table status if dine-in
@@ -130,6 +131,10 @@ export const createOrdersModule = () => ({
                 
                 // Switch to KDS view
                 this.currentTab = 'kds';
+
+                if (typeof this.cacheAllData === 'function') {
+                    this.cacheAllData();
+                }
             } else {
                 alert('Error placing order: ' + (response.message || 'Unknown error'));
             }

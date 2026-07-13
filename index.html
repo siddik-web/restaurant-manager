@@ -19,11 +19,23 @@
             }
         }
     </script>
+    <style>[x-cloak] { display: none !important; }</style>
     <!-- Module scripts are deferred and run before classic deferred scripts -->
     <script type="module" src="js/app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body x-data="app()" x-init="initApp()" :dir="direction" :class="{'rtl': direction === 'rtl'}">
+    <!-- API connection warning -->
+    <div x-show="apiStatus === 'unavailable'" x-cloak
+         class="bg-red-600 text-white px-4 py-2 text-center text-sm flex items-center justify-center gap-3">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span x-text="apiStatusMessage"></span>
+        <button @click="retryApiConnection()"
+                class="underline font-semibold hover:text-red-100">
+            Retry
+        </button>
+    </div>
+
     <!-- App Header -->
     <header class="bg-primary text-white shadow-md">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -33,6 +45,19 @@
             </h1>
             
             <div class="flex items-center gap-4">
+                <!-- API connection indicator -->
+                <div class="flex items-center gap-2 text-xs sm:text-sm bg-white/10 px-2 py-1 rounded-md"
+                     :title="apiStatusMessage">
+                    <span class="w-2 h-2 rounded-full shrink-0"
+                          :class="{
+                              'bg-green-400': apiStatus === 'connected',
+                              'bg-yellow-400': apiStatus === 'offline',
+                              'bg-red-400': apiStatus === 'unavailable',
+                              'bg-gray-300 animate-pulse': apiStatus === 'unknown'
+                          }"></span>
+                    <span x-text="getApiStatusLabel()"></span>
+                </div>
+
                 <!-- Language Switcher -->
                 <div class="flex gap-2">
                     <button @click="changeLanguage('en')" 

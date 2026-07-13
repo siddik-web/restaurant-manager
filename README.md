@@ -152,25 +152,32 @@ System configuration and preferences:
 - Composer for PHP dependencies
 
 ### Quick Start
-1. Clone the repository
-2. Set up the Laravel API backend:
-   ```bash
-   cd restaurant-api
-   composer install
-   cp .env.example .env
-   php artisan key:generate
-   php artisan migrate --seed
-   php artisan serve
-   ```
-3. Serve the frontend:
-   ```bash
-   # Using PHP built-in server
-   php -S localhost:8000
-   
-   # Or using any web server
-   # Point to the pos/ directory
-   ```
-4. Open `http://localhost:8000` in your browser
+
+**Recommended — Docker (frontend + API on one origin):**
+
+```bash
+docker compose up --build -d
+# Open http://localhost:8080
+```
+
+See [DOCKER.md](./DOCKER.md) for microservices architecture details.
+
+**Local monolith development:**
+
+The frontend must be served from the **same origin** as `/api`, or API calls will fail and the app will show "Server unavailable" instead of silently using demo data.
+
+Option A — API only (Laravel serves nothing for `/`, but API works on port 8000 if you add a proxy):
+
+```bash
+cd restaurant-api
+composer install && cp .env.example .env
+php artisan key:generate && php artisan migrate --seed
+php artisan serve --port=8000
+```
+
+Option B — Use Docker gateway at http://localhost:8080 (simplest).
+
+Do **not** run `php -S localhost:8000` for the frontend and `php artisan serve` on the same port without a reverse proxy — they conflict and `/api` will not reach Laravel.
 
 ### Database Setup
 The system includes comprehensive database migrations and seeders:

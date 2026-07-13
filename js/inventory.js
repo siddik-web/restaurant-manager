@@ -74,19 +74,24 @@ export const createInventoryModule = () => ({
     
     // Load all inventory-related data from API
     async loadInventory() {
-        // Inventory
-        const invRes = await api.request('get', '/inventory');
-        this.inventory = invRes.success ? (invRes.data.data || invRes.data) : [];
-        // Suppliers
-        const supRes = await api.request('get', '/suppliers');
-        this.suppliers = supRes.success ? (supRes.data.data || supRes.data) : [];
-        // Purchases
-        const purRes = await api.request('get', '/purchases');
-        this.purchases = purRes.success ? (purRes.data.data || purRes.data) : [];
-        // Waste
-        const wasteRes = await api.request('get', '/waste');
-        this.waste = wasteRes.success ? (wasteRes.data.data || wasteRes.data) : [];
-        // Alerts
+        const loadList = async (path, cacheKey, assign) => {
+            const res = await api.request('get', path);
+            if (res.offline) {
+                assign(JSON.parse(localStorage.getItem(cacheKey) || '[]'));
+                return;
+            }
+            assign(api.unwrapList(res));
+        };
+
+        await loadList('/inventory?per_page=500', 'restaurant_inventory', (data) => { this.inventory = data; });
+        await loadList('/suppliers?per_page=500', 'restaurant_suppliers', (data) => { this.suppliers = data; });
+        await loadList('/purchases?per_page=500', 'restaurant_purchases', (data) => { this.purchases = data; });
+        await loadList('/waste?per_page=500', 'restaurant_waste', (data) => { this.waste = data; });
+
+        if (this.dataSource === 'api' && typeof this.cacheAllData === 'function') {
+            this.cacheAllData();
+        }
+
         await this.updateInventoryAlerts();
     },
     
