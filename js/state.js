@@ -494,6 +494,11 @@ export const createAppState = () => ({
                 this.loadSettingsFromLocalStorage();
             }
 
+            // Load inventory domain (stock, suppliers, purchases, waste)
+            if (typeof this.loadInventory === 'function') {
+                await this.loadInventory();
+            }
+
         } catch (error) {
             console.error('Error loading data from API:', error);
             // Fallback to localStorage
@@ -539,6 +544,10 @@ export const createAppState = () => ({
         this.loadChefsFromLocalStorage();
         this.loadStationsFromLocalStorage();
         this.loadSettingsFromLocalStorage();
+        this.inventory = JSON.parse(localStorage.getItem('restaurant_inventory') || '[]');
+        this.suppliers = JSON.parse(localStorage.getItem('restaurant_suppliers') || '[]');
+        this.purchases = JSON.parse(localStorage.getItem('restaurant_purchases') || '[]');
+        this.waste = JSON.parse(localStorage.getItem('restaurant_waste') || '[]');
     },
 
     // Default data methods
@@ -673,6 +682,10 @@ export const createAppState = () => ({
             localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
             localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
             localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
+            localStorage.setItem('restaurant_inventory', JSON.stringify(this.inventory || []));
+            localStorage.setItem('restaurant_suppliers', JSON.stringify(this.suppliers || []));
+            localStorage.setItem('restaurant_purchases', JSON.stringify(this.purchases || []));
+            localStorage.setItem('restaurant_waste', JSON.stringify(this.waste || []));
         } catch (error) {
             console.error('Error saving data to localStorage:', error);
         }

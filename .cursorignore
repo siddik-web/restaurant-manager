@@ -1,0 +1,31 @@
+# Dependencies
+restaurant-api/vendor/
+restaurant-api/node_modules/
+node_modules/
+
+# Laravel runtime / generated
+restaurant-api/storage/logs/
+restaurant-api/storage/framework/cache/
+restaurant-api/storage/framework/sessions/
+restaurant-api/storage/framework/views/
+restaurant-api/bootstrap/cache/
+restaurant-api/public/build/
+restaurant-api/public/hot
+
+# Local env & secrets
+restaurant-api/.env
+**/.env
+**/.env.local
+**/*.pem
+**/*.key
+
+# Databases & locks
+restaurant-api/database/*.sqlite
+restaurant-api/database/*.sqlite-journal
+composer.lock
+package-lock.json
+
+# OS / IDE noise
+.DS_Store
+Thumbs.db
+*.log

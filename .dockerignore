@@ -1,0 +1,9 @@
+restaurant-api/vendor
+restaurant-api/node_modules
+restaurant-api/.env
+restaurant-api/storage/logs/*
+restaurant-api/storage/framework/cache/*
+restaurant-api/storage/framework/sessions/*
+restaurant-api/storage/framework/views/*
+.git
+.cursor

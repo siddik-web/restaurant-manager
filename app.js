@@ -1,3 +1,7 @@
+// LEGACY: This monolith is no longer loaded by index.html.
+// Live entrypoint is js/app.js (ES modules). Keep this file only as a reference
+// until the modular migration is fully validated, then delete it.
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('app', () => ({
         // App state

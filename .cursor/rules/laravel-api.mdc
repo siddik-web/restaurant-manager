@@ -1,0 +1,50 @@
+---
+description: Laravel API controllers, models, routes, and response conventions
+globs: restaurant-api/**/*.{php}
+alwaysApply: false
+---
+
+# Laravel API (`restaurant-api/`)
+
+## Structure
+
+- Controllers: `app/Http/Controllers/Api/*Controller.php`
+- Models: `app/Models/`
+- Routes: `routes/api.php` (apiResource + custom actions)
+- Migrations/seeders: `database/migrations`, `database/seeders`
+
+## Response contract
+
+```php
+return response()->json([
+    'success' => true,
+    'message' => '…', // optional
+    'data' => $modelOrPaginator,
+], 201);
+```
+
+On validation failure, use Laravel defaults; do not invent a second error envelope.
+
+## Controller style
+
+- Type-hint `JsonResponse`.
+- Validate with `$request->validate([...])` then `Model::create($validated)`.
+- Use query scopes on models (`active`, `byCategory`, `search`) instead of duplicating filters.
+- Prefer route-model binding (`Recipe $recipe`).
+- List endpoints: filter → sort → `paginate($request->get('per_page', 15))`.
+
+## Models
+
+- Declare `$fillable` and `$casts` (arrays/booleans/decimals).
+- Put reusable filters as `scope*` methods.
+- Define relationships explicitly (`hasMany`, `belongsTo`).
+
+## Routes
+
+Register in `routes/api.php`. Custom actions use `patch`/`post` beside `apiResource`.
+
+API file is registered in `bootstrap/app.php` via `api: __DIR__.'/../routes/api.php'` (Laravel auto-prefixes `/api`). Keep that entry when editing bootstrap.
+
+## Auth note
+
+Sanctum is present; most resource routes are currently open (only `/user` uses `auth:sanctum`). Do not assume middleware unless adding it intentionally.

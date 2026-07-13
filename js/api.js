@@ -91,6 +91,18 @@ class ApiClient {
         if (url.startsWith('/settings')) {
             return { success: true, data: JSON.parse(localStorage.getItem('restaurant_settings') || '{}') };
         }
+        if (url.startsWith('/inventory')) {
+            return { success: true, data: JSON.parse(localStorage.getItem('restaurant_inventory') || '[]') };
+        }
+        if (url.startsWith('/suppliers')) {
+            return { success: true, data: JSON.parse(localStorage.getItem('restaurant_suppliers') || '[]') };
+        }
+        if (url.startsWith('/purchases')) {
+            return { success: true, data: JSON.parse(localStorage.getItem('restaurant_purchases') || '[]') };
+        }
+        if (url.startsWith('/waste')) {
+            return { success: true, data: JSON.parse(localStorage.getItem('restaurant_waste') || '[]') };
+        }
         return { success: false, data: null };
     }
 

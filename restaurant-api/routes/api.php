@@ -14,20 +14,26 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\WasteController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
+$serviceDomain = env('SERVICE_DOMAIN', 'monolith');
+
+if ($serviceDomain !== 'monolith') {
+    $routeFile = config("microservice.domains.{$serviceDomain}.routes");
+
+    if ($routeFile && file_exists(base_path($routeFile))) {
+        require base_path($routeFile);
+    }
+
+    return;
+}
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::get('health', fn () => response()->json([
+    'success' => true,
+    'data' => ['service' => 'monolith', 'status' => 'ok'],
+]));
 
 // Recipe Routes
 Route::apiResource('recipes', RecipeController::class);
@@ -66,12 +72,12 @@ Route::get('stations/{station}/stats', [StationController::class, 'getStats']);
 Route::get('stations/active', [StationController::class, 'getActive']);
 
 // Setting Routes
-Route::apiResource('settings', SettingController::class);
 Route::get('settings/value/{key}', [SettingController::class, 'getValue']);
 Route::post('settings/value/{key}', [SettingController::class, 'setValue']);
 Route::get('settings/restaurant', [SettingController::class, 'getRestaurantSettings']);
 Route::post('settings/restaurant', [SettingController::class, 'updateRestaurantSettings']);
 Route::get('settings/types', [SettingController::class, 'getTypes']);
+Route::apiResource('settings', SettingController::class);
 
 // Inventory Routes
 Route::apiResource('inventory', InventoryController::class);
@@ -81,6 +87,7 @@ Route::get('inventory/alerts/low-stock', [InventoryController::class, 'lowStockA
 Route::get('inventory/alerts/expiring', [InventoryController::class, 'expiringItems']);
 Route::get('inventory/{inventory}/transactions', [InventoryController::class, 'transactions']);
 Route::post('inventory/bulk-update', [InventoryController::class, 'bulkUpdate']);
+Route::post('inventory/internal/deduct-ingredient', [InventoryController::class, 'deductForOrder']);
 
 // Supplier Routes
 Route::apiResource('suppliers', SupplierController::class);
@@ -114,12 +121,10 @@ Route::prefix('reports')->group(function () {
     Route::get('chef-performance', [ReportController::class, 'chefPerformance']);
     Route::get('station-performance', [ReportController::class, 'stationPerformance']);
     Route::get('export', [ReportController::class, 'exportData']);
-    
-    // Inventory Reports
     Route::get('inventory-stock', [ReportController::class, 'inventoryStock']);
     Route::get('inventory-value', [ReportController::class, 'inventoryValue']);
     Route::get('inventory-movement', [ReportController::class, 'inventoryMovement']);
     Route::get('purchase-analysis', [ReportController::class, 'purchaseAnalysis']);
     Route::get('waste-analysis', [ReportController::class, 'wasteAnalysis']);
     Route::get('supplier-performance', [ReportController::class, 'supplierPerformance']);
-}); 
+});

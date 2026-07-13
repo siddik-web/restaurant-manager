@@ -3,13 +3,14 @@
 
 import api from './api.js';
 
-export const createInventoryModule = (state) => ({
+export const createInventoryModule = () => ({
     // Inventory state
     inventory: [],
     suppliers: [],
     purchases: [],
     waste: [],
     inventoryAlerts: [],
+    inventoryTab: 'inventory', // inventory, purchases, suppliers, waste, reports
     
     // Form states
     showInventoryForm: false,
@@ -156,7 +157,7 @@ export const createInventoryModule = (state) => ({
     async deductStockFromOrder(order) {
         try {
             for (const orderItem of order.items) {
-                const recipe = state.recipes.find(r => r.id === orderItem.id);
+                const recipe = this.recipes.find(r => r.id === orderItem.id);
                 if (recipe && recipe.ingredients) {
                     for (const ingredient of recipe.ingredients) {
                         const inventoryItem = this.inventory.find(item => 
@@ -786,12 +787,5 @@ export const createInventoryModule = (state) => ({
     async initInventory() {
         await this.loadInventory();
         await this.updateInventoryAlerts();
-    }
-});
-
-// Initialize inventory module when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.inventory) {
-        window.inventory.initInventory();
     }
 }); 

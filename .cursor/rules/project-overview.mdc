@@ -1,0 +1,50 @@
+---
+description: Restaurant Manager architecture, stack, and critical project gotchas
+alwaysApply: true
+---
+
+# Restaurant Manager — Project Overview
+
+Modular restaurant POS + kitchen display + inventory system.
+
+## Stack
+
+- **Frontend**: Alpine.js 3, Tailwind CDN, Font Awesome, vanilla ES modules
+- **Backend**: Laravel 12 (PHP 8.2+), Sanctum, SQLite by default (monolith) / PostgreSQL (Docker)
+- **Docker**: 7 domain microservices + nginx gateway — see `DOCKER.md`
+- **i18n**: English + Arabic (RTL via `dir`)
+
+## Layout
+
+```
+index.html              # UI shell (Alpine x-data="app()")
+app.js                  # Legacy monolith (not loaded)
+js/                     # Modular frontend (api, state, recipes, orders, …)
+restaurant-api/         # Laravel API (monolith + microservice domains)
+docker-compose.yml      # Microservices orchestration
+docker/                 # Dockerfiles, nginx gateway, postgres init
+```
+
+## Critical gotchas
+
+1. **Live UI uses modular `js/app.js`** (`<script type="module" src="js/app.js">`). Root `app.js` is legacy/reference only — do not edit it for new features.
+2. API routes are registered via `api: __DIR__.'/../routes/api.php'` in `restaurant-api/bootstrap/app.php` (auto-prefixed `/api`).
+3. API responses use `{ success, data, message? }` JSON shape.
+4. Offline: frontend queues writes in `localStorage` (`api_request_queue`) and falls back for GETs.
+5. Alpine modules must mutate via `this` (not a closed-over `state` object) so reactivity works.
+
+## Domains
+
+POS orders, KDS, recipes, tables, chefs/stations, settings, inventory (stock, suppliers, purchases, waste, transactions), reports.
+
+## Commands
+
+```bash
+# Docker microservices (recommended)
+docker compose up --build -d   # UI + API at http://localhost:8080
+
+# Monolith (local dev)
+cd restaurant-api && composer install && cp .env.example .env
+php artisan key:generate && php artisan migrate --seed && php artisan serve
+# Frontend (repo root): php -S localhost:8000
+```
