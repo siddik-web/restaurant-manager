@@ -24,6 +24,18 @@ class InterServiceClient
         return rtrim(env('GATEWAY_URL', 'http://gateway'), '/');
     }
 
+    private function client(int $timeout = 10): \Illuminate\Http\Client\PendingRequest
+    {
+        $client = Http::timeout($timeout);
+        $token = request()->bearerToken();
+        
+        if ($token) {
+            $client = $client->withToken($token);
+        }
+        
+        return $client;
+    }
+
     public function getRecipe(int $recipeId): ?array
     {
         if (! $this->isMicroserviceMode()) {
@@ -32,7 +44,7 @@ class InterServiceClient
             return $recipe ? $recipe->toArray() : null;
         }
 
-        $response = Http::timeout(10)->get("{$this->gatewayUrl()}/api/recipes/{$recipeId}");
+        $response = $this->client(10)->get("{$this->gatewayUrl()}/api/recipes/{$recipeId}");
 
         if (! $response->successful()) {
             return null;
@@ -49,7 +61,7 @@ class InterServiceClient
             return Setting::getValue($key, $default);
         }
 
-        $response = Http::timeout(10)->get("{$this->gatewayUrl()}/api/settings/value/{$key}");
+        $response = $this->client(10)->get("{$this->gatewayUrl()}/api/settings/value/{$key}");
 
         if (! $response->successful()) {
             return $default;
@@ -68,7 +80,7 @@ class InterServiceClient
             return;
         }
 
-        $response = Http::timeout(10)->get("{$this->gatewayUrl()}/api/tables");
+        $response = $this->client(10)->get("{$this->gatewayUrl()}/api/tables");
 
         if (! $response->successful()) {
             return;
@@ -81,7 +93,7 @@ class InterServiceClient
             return;
         }
 
-        Http::timeout(10)->patch("{$this->gatewayUrl()}/api/tables/{$table['id']}", [
+        $this->client(10)->patch("{$this->gatewayUrl()}/api/tables/{$table['id']}", [
             'status' => $status,
         ]);
     }
@@ -94,7 +106,7 @@ class InterServiceClient
             return;
         }
 
-        Http::timeout(10)->post("{$this->gatewayUrl()}/api/inventory/internal/deduct-ingredient", [
+        $this->client(10)->post("{$this->gatewayUrl()}/api/inventory/internal/deduct-ingredient", [
             'ingredient' => $ingredient,
             'recipe_quantity' => $recipeQuantity,
             'order_id' => $orderId,
@@ -107,7 +119,7 @@ class InterServiceClient
             return [];
         }
 
-        $response = Http::timeout(15)->get("{$this->gatewayUrl()}/api/{$path}");
+        $response = $this->client(15)->get("{$this->gatewayUrl()}/api/{$path}");
 
         if (! $response->successful()) {
             return [];

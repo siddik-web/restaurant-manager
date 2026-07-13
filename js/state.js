@@ -11,6 +11,14 @@ export const createAppState = () => ({
     direction: 'ltr',
     orderType: 'dine-in',
 
+    // Auth State
+    token: localStorage.getItem('restaurant_token') || null,
+    user: JSON.parse(localStorage.getItem('restaurant_user') || 'null'),
+    loginEmail: '',
+    loginPassword: '',
+    loginError: '',
+    isLoggingIn: false,
+
     // API connection state
     apiStatus: 'unknown',
     apiStatusMessage: '',
@@ -411,9 +419,19 @@ export const createAppState = () => ({
                 this.apiStatusMessage = message;
             });
 
-            await this.loadAllData();
+            // Listen for global logout event
+            window.addEventListener('auth:logout', () => {
+                this.token = null;
+                this.user = null;
+                localStorage.removeItem('restaurant_token');
+                localStorage.removeItem('restaurant_user');
+                this.currentTab = 'pos';
+            });
 
-            this.validateAndCleanData();
+            if (this.token) {
+                await this.loadAllData();
+                this.validateAndCleanData();
+            }
             
             // Request notification permission
             if ('Notification' in window) {
@@ -477,6 +495,11 @@ export const createAppState = () => ({
     },
 
     async loadAllData() {
+        if (!this.token) {
+            this.loadAllFromLocalStorage(false);
+            return;
+        }
+
         const connected = await api.checkConnection();
 
         if (!navigator.onLine) {
@@ -516,6 +539,60 @@ export const createAppState = () => ({
         }
 
         this.cacheAllData();
+    },
+
+    async login() {
+        this.loginError = '';
+        this.isLoggingIn = true;
+        try {
+            const response = await api.request('post', '/login', {
+                email: this.loginEmail,
+                password: this.loginPassword
+            }, { skipTransform: true });
+
+            if (response.success && response.data) {
+                this.token = response.data.token;
+                this.user = response.data.user;
+                localStorage.setItem('restaurant_token', this.token);
+                localStorage.setItem('restaurant_user', JSON.stringify(this.user));
+                
+                // Set tab based on role
+                if (this.user.role === 'chef') {
+                    this.currentTab = 'kds';
+                } else if (this.user.role === 'inventory_manager') {
+                    this.currentTab = 'inventory';
+                } else {
+                    this.currentTab = 'pos';
+                }
+
+                this.loginEmail = '';
+                this.loginPassword = '';
+                
+                await this.loadAllData();
+                this.validateAndCleanData();
+            } else {
+                this.loginError = response.message || 'Login failed';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            this.loginError = error.message || 'Invalid credentials or server error';
+        } finally {
+            this.isLoggingIn = false;
+        }
+    },
+
+    async logout() {
+        try {
+            await api.request('post', '/logout', null, { skipTransform: true });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            this.token = null;
+            this.user = null;
+            localStorage.removeItem('restaurant_token');
+            localStorage.removeItem('restaurant_user');
+            this.currentTab = 'pos';
+        }
     },
 
     cacheAllData() {

@@ -158,33 +158,7 @@ export const createInventoryModule = () => ({
         }
     },
     
-    // Automatic stock deduction from orders
-    async deductStockFromOrder(order) {
-        try {
-            for (const orderItem of order.items) {
-                const recipe = this.recipes.find(r => r.id === orderItem.id);
-                if (recipe && recipe.ingredients) {
-                    for (const ingredient of recipe.ingredients) {
-                        const inventoryItem = this.inventory.find(item => 
-                            item.name.toLowerCase() === ingredient.name.toLowerCase()
-                        );
-                        
-                        if (inventoryItem) {
-                            const totalQuantity = ingredient.quantity * orderItem.quantity;
-                            await this.updateStock(
-                                inventoryItem.id, 
-                                totalQuantity, 
-                                'subtract', 
-                                `Order #${order.id} - ${recipe.name}`
-                            );
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error deducting stock from order:', error);
-        }
-    },
+    
     
     // Get stock transactions
     async getStockTransactions(itemId = null) {

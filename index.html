@@ -25,107 +25,120 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body x-data="app()" x-init="initApp()" :dir="direction" :class="{'rtl': direction === 'rtl'}">
-    <!-- API connection warning -->
-    <div x-show="apiStatus === 'unavailable'" x-cloak
-         class="bg-red-600 text-white px-4 py-2 text-center text-sm flex items-center justify-center gap-3">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span x-text="apiStatusMessage"></span>
-        <button @click="retryApiConnection()"
-                class="underline font-semibold hover:text-red-100">
-            Retry
-        </button>
-    </div>
+    <!-- App Container wrapped in x-show="token" -->
+    <div x-show="token" x-cloak class="min-h-screen flex flex-col">
+        <!-- API connection warning -->
+        <div x-show="apiStatus === 'unavailable'" x-cloak
+             class="bg-red-600 text-white px-4 py-2 text-center text-sm flex items-center justify-center gap-3">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span x-text="apiStatusMessage"></span>
+            <button @click="retryApiConnection()"
+                    class="underline font-semibold hover:text-red-100">
+                Retry
+            </button>
+        </div>
 
-    <!-- App Header -->
-    <header class="bg-primary text-white shadow-md">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2">
-                <i class="fas fa-utensils"></i>
-                <span x-text="translations.appTitle"></span>
-            </h1>
-            
-            <div class="flex items-center gap-4">
-                <!-- API connection indicator -->
-                <div class="flex items-center gap-2 text-xs sm:text-sm bg-white/10 px-2 py-1 rounded-md"
-                     :title="apiStatusMessage">
-                    <span class="w-2 h-2 rounded-full shrink-0"
-                          :class="{
-                              'bg-green-400': apiStatus === 'connected',
-                              'bg-yellow-400': apiStatus === 'offline',
-                              'bg-red-400': apiStatus === 'unavailable',
-                              'bg-gray-300 animate-pulse': apiStatus === 'unknown'
-                          }"></span>
-                    <span x-text="getApiStatusLabel()"></span>
-                </div>
+        <!-- App Header -->
+        <header class="bg-primary text-white shadow-md">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-utensils"></i>
+                    <span x-text="translations.appTitle"></span>
+                </h1>
+                
+                <div class="flex items-center gap-4">
+                    <!-- API connection indicator -->
+                    <div class="flex items-center gap-2 text-xs sm:text-sm bg-white/10 px-2 py-1 rounded-md"
+                         :title="apiStatusMessage">
+                        <span class="w-2 h-2 rounded-full shrink-0"
+                              :class="{
+                                  'bg-green-400': apiStatus === 'connected',
+                                  'bg-yellow-400': apiStatus === 'offline',
+                                  'bg-red-400': apiStatus === 'unavailable',
+                                  'bg-gray-300 animate-pulse': apiStatus === 'unknown'
+                              }"></span>
+                        <span x-text="getApiStatusLabel()"></span>
+                    </div>
 
-                <!-- Language Switcher -->
-                <div class="flex gap-2">
-                    <button @click="changeLanguage('en')" 
-                            class="px-3 py-1 rounded-md"
-                            :class="{'bg-white text-primary': language === 'en'}">
-                        EN
-                    </button>
-                    <button @click="changeLanguage('ar')" 
-                            class="px-3 py-1 rounded-md"
-                            :class="{'bg-white text-primary': language === 'ar'}">
-                        AR
-                    </button>
-                </div>
-                
-                <!-- Navigation -->
-                <nav class="flex gap-4">
-                    <button @click="currentTab = 'pos'" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'pos'}">
-                        <i class="fas fa-cash-register mr-2"></i>
-                        <span x-text="translations.pos"></span>
-                    </button>
-                    <button @click="currentTab = 'kds'" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'kds'}">
-                        <i class="fas fa-tv mr-2"></i>
-                        <span x-text="translations.kds"></span>
-                    </button>
-                    <button @click="currentTab = 'recipes'" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'recipes'}">
-                        <i class="fas fa-book mr-2"></i>
-                        <span x-text="translations.recipes"></span>
-                    </button>
-                    <button @click="currentTab = 'tables'" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'tables'}">
-                        <i class="fas fa-chair mr-2"></i>
-                        <span x-text="translations.tables"></span>
-                    </button>
-                    <button @click="currentTab = 'reports'; generateReports()" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'reports'}">
-                        <i class="fas fa-chart-bar mr-2"></i>
-                        <span x-text="translations.reports"></span>
-                    </button>
-                    <button @click="currentTab = 'inventory'" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
-                            :class="{'bg-white text-primary': currentTab === 'inventory'}">
-                        <i class="fas fa-boxes mr-2"></i>
-                        <span x-text="translations.inventory"></span>
-                    </button>
-                </nav>
-                
-                <!-- Settings & Backup Buttons -->
-                <div class="flex gap-2">
-                    <button @click="showBackup = true" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
-                        <i class="fas fa-database"></i>
-                    </button>
-                    <button @click="showSettings = true" 
-                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
-                        <i class="fas fa-cog"></i>
-                    </button>
+                    <!-- Language Switcher -->
+                    <div class="flex gap-2">
+                        <button @click="changeLanguage('en')" 
+                                class="px-3 py-1 rounded-md"
+                                :class="{'bg-white text-primary': language === 'en'}">
+                            EN
+                        </button>
+                        <button @click="changeLanguage('ar')" 
+                                class="px-3 py-1 rounded-md"
+                                :class="{'bg-white text-primary': language === 'ar'}">
+                            AR
+                        </button>
+                    </div>
+                    
+                    <!-- User Profile & Logout -->
+                    <div x-show="user" class="flex items-center gap-3 bg-white/15 px-3 py-1.5 rounded-lg border border-white/10">
+                        <div class="text-right hidden sm:block">
+                            <div class="text-sm font-semibold leading-none" x-text="user.name"></div>
+                            <div class="text-[10px] text-teal-200 capitalize font-medium" x-text="user.role"></div>
+                        </div>
+                        <button @click="logout()" title="Logout" class="text-white hover:text-red-300 transition-colors p-1 rounded hover:bg-white/10">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <nav class="flex gap-4">
+                        <button x-show="user && (user.role === 'admin' || user.role === 'cashier')" @click="currentTab = 'pos'" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'pos'}">
+                            <i class="fas fa-cash-register mr-2"></i>
+                            <span x-text="translations.pos"></span>
+                        </button>
+                        <button x-show="user && (user.role === 'admin' || user.role === 'chef')" @click="currentTab = 'kds'" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'kds'}">
+                            <i class="fas fa-tv mr-2"></i>
+                            <span x-text="translations.kds"></span>
+                        </button>
+                        <button x-show="user" @click="currentTab = 'recipes'" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'recipes'}">
+                            <i class="fas fa-book mr-2"></i>
+                            <span x-text="translations.recipes"></span>
+                        </button>
+                        <button x-show="user && (user.role === 'admin' || user.role === 'cashier')" @click="currentTab = 'tables'" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'tables'}">
+                            <i class="fas fa-chair mr-2"></i>
+                            <span x-text="translations.tables"></span>
+                        </button>
+                        <button x-show="user && user.role === 'admin'" @click="currentTab = 'reports'; generateReports()" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'reports'}">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            <span x-text="translations.reports"></span>
+                        </button>
+                        <button x-show="user && (user.role === 'admin' || user.role === 'inventory_manager')" @click="currentTab = 'inventory'" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition"
+                                :class="{'bg-white text-primary': currentTab === 'inventory'}">
+                            <i class="fas fa-boxes mr-2"></i>
+                            <span x-text="translations.inventory"></span>
+                        </button>
+                    </nav>
+                    
+                    <!-- Settings & Backup Buttons -->
+                    <div class="flex gap-2">
+                        <button x-show="user && user.role === 'admin'" @click="showBackup = true" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
+                            <i class="fas fa-database"></i>
+                        </button>
+                        <button x-show="user && user.role === 'admin'" @click="showSettings = true" 
+                                class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
 
     <main class="container mx-auto px-4 py-6">
         <!-- POS System -->
@@ -2592,8 +2605,63 @@
         </div>
 
         <!-- Audio element for new order notification -->
-    <audio id="newOrderSound" preload="auto">
-        <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
-    </audio>
+        <audio id="newOrderSound" preload="auto">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
+        </audio>
+    </div> <!-- Close of token container -->
+
+    <!-- Login Screen -->
+    <div x-show="!token" x-cloak class="min-h-screen flex items-center justify-center bg-cover bg-center bg-gray-900" style="background-image: url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=80');">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
+        <div class="relative w-full max-w-md p-8 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl text-white mx-4">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-primary/30 flex items-center justify-center rounded-full mx-auto mb-4 border border-primary/50 shadow-inner animate-pulse">
+                    <i class="fas fa-utensils text-2xl text-teal-300"></i>
+                </div>
+                <h2 class="text-3xl font-extrabold tracking-tight">Restaurant POS</h2>
+                <p class="text-gray-300 mt-2 text-sm">Please sign in to access the manager dashboard</p>
+            </div>
+
+            <form @submit.prevent="login()" class="space-y-6">
+                <!-- Error Message -->
+                <div x-show="loginError" x-text="loginError" class="bg-red-500/20 border border-red-500/40 text-red-200 px-4 py-2.5 rounded-lg text-sm text-center"></div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">Email Address</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fas fa-envelope"></i>
+                        </span>
+                        <input type="email" x-model="loginEmail" required class="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition" placeholder="admin@restaurant.com">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" x-model="loginPassword" required class="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit" :disabled="isLoggingIn" class="w-full bg-primary hover:bg-teal-700 active:bg-teal-800 disabled:opacity-50 text-white font-bold py-3.5 px-4 rounded-lg shadow-lg hover:shadow-teal-500/20 transition flex items-center justify-center gap-2">
+                    <span x-show="!isLoggingIn">Sign In</span>
+                    <span x-show="isLoggingIn" class="flex items-center gap-2">
+                        <i class="fas fa-circle-notch animate-spin"></i> Signing in...
+                    </span>
+                </button>
+            </form>
+
+            <div class="mt-8 pt-6 border-t border-white/10 text-center text-xs text-gray-400">
+                <p class="font-medium mb-1">Demo Accounts:</p>
+                <p>Admin: admin@restaurant.com / password</p>
+                <p>Cashier: cashier@restaurant.com / password</p>
+                <p>Chef: chef@restaurant.com / password</p>
+                <p>Inventory: inventory@restaurant.com / password</p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

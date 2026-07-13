@@ -79,7 +79,19 @@ class ApiClient {
         const httpMethod = method.toLowerCase();
 
         if (!this.isOnline) {
-            this.queue.push({ method: httpMethod, url, data, options, timestamp: Date.now() });
+            const token = localStorage.getItem('restaurant_token');
+            const userObj = JSON.parse(localStorage.getItem('restaurant_user') || '{}');
+            const userId = userObj ? userObj.id : null;
+
+            this.queue.push({ 
+                method: httpMethod, 
+                url, 
+                data, 
+                options, 
+                timestamp: Date.now(),
+                token,
+                userId
+            });
             localStorage.setItem('api_request_queue', JSON.stringify(this.queue));
 
             if (httpMethod === 'get') {
@@ -90,13 +102,20 @@ class ApiClient {
         }
 
         try {
+            const token = localStorage.getItem('restaurant_token');
+            const headers = {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                ...options.headers,
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const fetchOptions = {
                 method: httpMethod.toUpperCase(),
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    ...options.headers,
-                },
+                headers,
             };
 
             if (data !== null && data !== undefined) {
@@ -114,6 +133,11 @@ class ApiClient {
             }
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('restaurant_token');
+                    localStorage.removeItem('restaurant_user');
+                    window.dispatchEvent(new CustomEvent('auth:logout'));
+                }
                 throw new Error(result.message || `API error (${response.status})`);
             }
 
@@ -129,7 +153,19 @@ class ApiClient {
         } catch (error) {
             if (!navigator.onLine) {
                 this._setStatus('offline', 'Browser is offline. Showing cached data only.');
-                this.queue.push({ method: httpMethod, url, data, options, timestamp: Date.now() });
+                const token = localStorage.getItem('restaurant_token');
+                const userObj = JSON.parse(localStorage.getItem('restaurant_user') || '{}');
+                const userId = userObj ? userObj.id : null;
+
+                this.queue.push({ 
+                    method: httpMethod, 
+                    url, 
+                    data, 
+                    options, 
+                    timestamp: Date.now(),
+                    token,
+                    userId
+                });
                 localStorage.setItem('api_request_queue', JSON.stringify(this.queue));
 
                 if (httpMethod === 'get') {
@@ -150,12 +186,30 @@ class ApiClient {
     async syncQueue() {
         if (!this.isOnline || !this.queue.length) return;
 
+        const currentToken = localStorage.getItem('restaurant_token');
+        const currentUserObj = JSON.parse(localStorage.getItem('restaurant_user') || '{}');
+        const currentUserId = currentUserObj ? currentUserObj.id : null;
+
         const queueCopy = [...this.queue];
         this.queue = [];
 
         for (const req of queueCopy) {
+            if (req.userId && req.userId !== currentUserId) {
+                // Keep requests of other users in the queue
+                this.queue.push(req);
+                continue;
+            }
+
             try {
-                await this.request(req.method, req.url, req.data, req.options);
+                const useToken = req.token || currentToken;
+                const reqOptions = {
+                    ...req.options,
+                    headers: {
+                        ...req.options?.headers,
+                        'Authorization': `Bearer ${useToken}`
+                    }
+                };
+                await this.request(req.method, req.url, req.data, reqOptions);
             } catch {
                 this.queue.push(req);
             }

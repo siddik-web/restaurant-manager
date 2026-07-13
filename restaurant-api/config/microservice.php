@@ -14,8 +14,10 @@ return [
     */
 
     'core_migrations' => [
+        'database/migrations/0001_01_01_000000_create_users_table.php',
         'database/migrations/0001_01_01_000001_create_cache_table.php',
         'database/migrations/0001_01_01_000002_create_jobs_table.php',
+        'database/migrations/2025_07_06_024322_create_personal_access_tokens_table.php',
     ],
 
     'domains' => [
