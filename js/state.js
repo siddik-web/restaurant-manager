@@ -2,6 +2,7 @@
 // Main state management for Alpine.js app
 
 import api from './api.js';
+import { normalizeOrder, normalizeSettings } from './transform.js';
 
 export const createAppState = () => ({
     // App state
@@ -9,6 +10,19 @@ export const createAppState = () => ({
     language: 'en',
     direction: 'ltr',
     orderType: 'dine-in',
+
+    // Auth State
+    token: localStorage.getItem('restaurant_token') || null,
+    user: JSON.parse(localStorage.getItem('restaurant_user') || 'null'),
+    loginEmail: '',
+    loginPassword: '',
+    loginError: '',
+    isLoggingIn: false,
+
+    // API connection state
+    apiStatus: 'unknown',
+    apiStatusMessage: '',
+    dataSource: 'unknown',
     
     // POS State Variables
     posSearchTerm: '',
@@ -400,11 +414,24 @@ export const createAppState = () => ({
     // Initialize app
     async initApp() {
         try {
-            // Load all data from API/localStorage
-            await this.loadAllData();
-            
-            // Validate and clean data on startup
-            this.validateAndCleanData();
+            api.onStatusChange((status, message) => {
+                this.apiStatus = status;
+                this.apiStatusMessage = message;
+            });
+
+            // Listen for global logout event
+            window.addEventListener('auth:logout', () => {
+                this.token = null;
+                this.user = null;
+                localStorage.removeItem('restaurant_token');
+                localStorage.removeItem('restaurant_user');
+                this.currentTab = 'pos';
+            });
+
+            if (this.token) {
+                await this.loadAllData();
+                this.validateAndCleanData();
+            }
             
             // Request notification permission
             if ('Notification' in window) {
@@ -440,105 +467,189 @@ export const createAppState = () => ({
             
         } catch (error) {
             console.error('Error initializing app:', error);
+            if (this.apiStatus === 'unknown') {
+                this.apiStatus = 'unavailable';
+                this.apiStatusMessage = error.message || 'Failed to load data from API';
+            }
         }
     },
 
-    // Load all data from API/localStorage
-    async loadAllData() {
+    getApiStatusLabel() {
+        switch (this.apiStatus) {
+            case 'connected': return this.language === 'ar' ? 'متصل بالخادم' : 'Server connected';
+            case 'offline': return this.language === 'ar' ? 'غير متصل — بيانات محلية' : 'Offline — local cache';
+            case 'unavailable': return this.language === 'ar' ? 'الخادم غير متاح' : 'Server unavailable';
+            default: return this.language === 'ar' ? 'جاري الاتصال...' : 'Connecting...';
+        }
+    },
+
+    async retryApiConnection() {
+        this.apiStatus = 'unknown';
+        this.apiStatusMessage = '';
         try {
-            // Load recipes
-            const recipesResponse = await api.getRecipes();
-            if (recipesResponse.success) {
-                this.recipes = recipesResponse.data.data || recipesResponse.data;
-            } else {
-                this.loadRecipesFromLocalStorage();
-            }
-
-            // Load orders
-            const ordersResponse = await api.getOrders();
-            if (ordersResponse.success) {
-                this.orders = ordersResponse.data.data || ordersResponse.data;
-            } else {
-                this.loadOrdersFromLocalStorage();
-            }
-
-            // Load tables
-            const tablesResponse = await api.getTables();
-            if (tablesResponse.success) {
-                this.tables = tablesResponse.data.data || tablesResponse.data;
-            } else {
-                this.loadTablesFromLocalStorage();
-            }
-
-            // Load chefs
-            const chefsResponse = await api.getChefs();
-            if (chefsResponse.success) {
-                this.chefs = chefsResponse.data.data || chefsResponse.data;
-            } else {
-                this.loadChefsFromLocalStorage();
-            }
-
-            // Load stations
-            const stationsResponse = await api.getStations();
-            if (stationsResponse.success) {
-                this.stations = stationsResponse.data.data || stationsResponse.data;
-            } else {
-                this.loadStationsFromLocalStorage();
-            }
-
-            // Load settings
-            const settingsResponse = await api.getSettings();
-            if (settingsResponse.success) {
-                this.settings = settingsResponse.data.data || settingsResponse.data;
-            } else {
-                this.loadSettingsFromLocalStorage();
-            }
-
+            await this.loadAllData();
+            this.validateAndCleanData();
         } catch (error) {
-            console.error('Error loading data from API:', error);
-            // Fallback to localStorage
-            this.loadAllFromLocalStorage();
+            console.error('API reconnect failed:', error);
         }
     },
 
-    // LocalStorage fallback methods
-    loadRecipesFromLocalStorage() {
+    async loadAllData() {
+        if (!this.token) {
+            this.loadAllFromLocalStorage(false);
+            return;
+        }
+
+        const connected = await api.checkConnection();
+
+        if (!navigator.onLine) {
+            this.dataSource = 'offline';
+            this.loadAllFromLocalStorage(false);
+            return;
+        }
+
+        if (!connected) {
+            this.dataSource = 'unavailable';
+            this.loadAllFromLocalStorage(false);
+            throw new Error(this.apiStatusMessage || 'API unavailable');
+        }
+
+        this.dataSource = 'api';
+
+        const recipesResponse = await api.getRecipes();
+        this.recipes = api.unwrapList(recipesResponse);
+
+        const ordersResponse = await api.getOrders();
+        this.orders = api.unwrapList(ordersResponse).map(normalizeOrder);
+
+        const tablesResponse = await api.getTables();
+        this.tables = api.unwrapList(tablesResponse);
+
+        const chefsResponse = await api.getChefs();
+        this.chefs = api.unwrapList(chefsResponse);
+
+        const stationsResponse = await api.getStations();
+        this.stations = api.unwrapList(stationsResponse);
+
+        const settingsResponse = await api.getRestaurantSettings();
+        this.settings = normalizeSettings(settingsResponse.data);
+
+        if (typeof this.loadInventory === 'function') {
+            await this.loadInventory();
+        }
+
+        this.cacheAllData();
+    },
+
+    async login() {
+        this.loginError = '';
+        this.isLoggingIn = true;
+        try {
+            const response = await api.request('post', '/login', {
+                email: this.loginEmail,
+                password: this.loginPassword
+            }, { skipTransform: true });
+
+            if (response.success && response.data) {
+                this.token = response.data.token;
+                this.user = response.data.user;
+                localStorage.setItem('restaurant_token', this.token);
+                localStorage.setItem('restaurant_user', JSON.stringify(this.user));
+                
+                // Set tab based on role
+                if (this.user.role === 'chef') {
+                    this.currentTab = 'kds';
+                } else if (this.user.role === 'inventory_manager') {
+                    this.currentTab = 'inventory';
+                } else {
+                    this.currentTab = 'pos';
+                }
+
+                this.loginEmail = '';
+                this.loginPassword = '';
+                
+                await this.loadAllData();
+                this.validateAndCleanData();
+            } else {
+                this.loginError = response.message || 'Login failed';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            this.loginError = error.message || 'Invalid credentials or server error';
+        } finally {
+            this.isLoggingIn = false;
+        }
+    },
+
+    async logout() {
+        try {
+            await api.request('post', '/logout', null, { skipTransform: true });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            this.token = null;
+            this.user = null;
+            localStorage.removeItem('restaurant_token');
+            localStorage.removeItem('restaurant_user');
+            this.currentTab = 'pos';
+        }
+    },
+
+    cacheAllData() {
+        api.cacheToLocalStorage('restaurant_recipes', this.recipes);
+        api.cacheToLocalStorage('restaurant_orders', this.orders);
+        api.cacheToLocalStorage('restaurant_tables', this.tables);
+        api.cacheToLocalStorage('restaurant_chefs', this.chefs);
+        api.cacheToLocalStorage('restaurant_stations', this.stations);
+        api.cacheToLocalStorage('restaurant_settings', this.settings);
+        if (this.inventory) api.cacheToLocalStorage('restaurant_inventory', this.inventory);
+        if (this.suppliers) api.cacheToLocalStorage('restaurant_suppliers', this.suppliers);
+        if (this.purchases) api.cacheToLocalStorage('restaurant_purchases', this.purchases);
+        if (this.waste) api.cacheToLocalStorage('restaurant_waste', this.waste);
+    },
+
+    // LocalStorage fallback — useDefaults=false avoids injecting demo data when API is down
+    loadRecipesFromLocalStorage(useDefaults = true) {
         const savedRecipes = localStorage.getItem('restaurant_recipes');
-        this.recipes = savedRecipes ? JSON.parse(savedRecipes) : this.getDefaultRecipes();
+        this.recipes = savedRecipes ? JSON.parse(savedRecipes) : (useDefaults ? this.getDefaultRecipes() : []);
     },
 
-    loadOrdersFromLocalStorage() {
+    loadOrdersFromLocalStorage(useDefaults = true) {
         const savedOrders = localStorage.getItem('restaurant_orders');
-        this.orders = savedOrders ? JSON.parse(savedOrders) : [];
+        this.orders = savedOrders ? JSON.parse(savedOrders).map(normalizeOrder) : [];
     },
 
-    loadTablesFromLocalStorage() {
+    loadTablesFromLocalStorage(useDefaults = true) {
         const savedTables = localStorage.getItem('restaurant_tables');
-        this.tables = savedTables ? JSON.parse(savedTables) : this.getDefaultTables();
+        this.tables = savedTables ? JSON.parse(savedTables) : (useDefaults ? this.getDefaultTables() : []);
     },
 
-    loadChefsFromLocalStorage() {
+    loadChefsFromLocalStorage(useDefaults = true) {
         const savedChefs = localStorage.getItem('restaurant_chefs');
-        this.chefs = savedChefs ? JSON.parse(savedChefs) : this.getDefaultChefs();
+        this.chefs = savedChefs ? JSON.parse(savedChefs) : (useDefaults ? this.getDefaultChefs() : []);
     },
 
-    loadStationsFromLocalStorage() {
+    loadStationsFromLocalStorage(useDefaults = true) {
         const savedStations = localStorage.getItem('restaurant_stations');
-        this.stations = savedStations ? JSON.parse(savedStations) : this.getDefaultStations();
+        this.stations = savedStations ? JSON.parse(savedStations) : (useDefaults ? this.getDefaultStations() : []);
     },
 
-    loadSettingsFromLocalStorage() {
+    loadSettingsFromLocalStorage(useDefaults = true) {
         const savedSettings = localStorage.getItem('restaurant_settings');
-        this.settings = savedSettings ? JSON.parse(savedSettings) : this.getDefaultSettings();
+        this.settings = savedSettings ? JSON.parse(savedSettings) : (useDefaults ? this.getDefaultSettings() : {});
     },
 
-    loadAllFromLocalStorage() {
-        this.loadRecipesFromLocalStorage();
-        this.loadOrdersFromLocalStorage();
-        this.loadTablesFromLocalStorage();
-        this.loadChefsFromLocalStorage();
-        this.loadStationsFromLocalStorage();
-        this.loadSettingsFromLocalStorage();
+    loadAllFromLocalStorage(useDefaults = true) {
+        this.loadRecipesFromLocalStorage(useDefaults);
+        this.loadOrdersFromLocalStorage(useDefaults);
+        this.loadTablesFromLocalStorage(useDefaults);
+        this.loadChefsFromLocalStorage(useDefaults);
+        this.loadStationsFromLocalStorage(useDefaults);
+        this.loadSettingsFromLocalStorage(useDefaults);
+        this.inventory = JSON.parse(localStorage.getItem('restaurant_inventory') || '[]');
+        this.suppliers = JSON.parse(localStorage.getItem('restaurant_suppliers') || '[]');
+        this.purchases = JSON.parse(localStorage.getItem('restaurant_purchases') || '[]');
+        this.waste = JSON.parse(localStorage.getItem('restaurant_waste') || '[]');
     },
 
     // Default data methods
@@ -645,23 +756,25 @@ export const createAppState = () => ({
 
     // Data validation and cleanup
     validateAndCleanData() {
-        // Clean up orders (remove invalid ones)
-        this.orders = this.orders.filter(order => 
-            order && order.id && order.items && Array.isArray(order.items)
+        this.orders = this.orders.filter((order) => {
+            if (!order || !order.id) return false;
+            const items = order.items || order.orderItems;
+            return Array.isArray(items);
+        }).map(normalizeOrder);
+
+        this.recipes = this.recipes.filter((recipe) =>
+            recipe && recipe.id && recipe.name && parseFloat(recipe.price) > 0
         );
-        
-        // Clean up recipes (remove invalid ones)
-        this.recipes = this.recipes.filter(recipe => 
-            recipe && recipe.id && recipe.name && recipe.price > 0
-        );
-        
-        // Clean up tables (remove invalid ones)
-        this.tables = this.tables.filter(table => 
+
+        this.tables = this.tables.filter((table) =>
             table && table.id && table.number
         );
-        
-        // Save cleaned data
-        this.saveAllData();
+
+        if (this.dataSource === 'api') {
+            this.cacheAllData();
+        } else if (this.dataSource === 'offline') {
+            this.saveAllData();
+        }
     },
 
     // Save all data to localStorage (fallback)
@@ -673,6 +786,10 @@ export const createAppState = () => ({
             localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
             localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
             localStorage.setItem('restaurant_settings', JSON.stringify(this.settings));
+            localStorage.setItem('restaurant_inventory', JSON.stringify(this.inventory || []));
+            localStorage.setItem('restaurant_suppliers', JSON.stringify(this.suppliers || []));
+            localStorage.setItem('restaurant_purchases', JSON.stringify(this.purchases || []));
+            localStorage.setItem('restaurant_waste', JSON.stringify(this.waste || []));
         } catch (error) {
             console.error('Error saving data to localStorage:', error);
         }

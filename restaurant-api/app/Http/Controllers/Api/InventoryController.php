@@ -485,4 +485,74 @@ class InventoryController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Internal endpoint used by the order service to deduct stock.
+     */
+    public function deductForOrder(Request $request)
+    {
+        $validated = $request->validate([
+            'ingredient' => 'required|array',
+            'ingredient.name' => 'required|string',
+            'ingredient.quantity' => 'nullable|numeric',
+            'recipe_quantity' => 'required|integer|min:1',
+            'order_id' => 'nullable|integer',
+        ]);
+
+        $ingredient = $validated['ingredient'];
+        $recipeQuantity = $validated['recipe_quantity'];
+        $orderId = $validated['order_id'] ?? null;
+
+        $inventory = Inventory::whereRaw('LOWER(name) = ?', [strtolower($ingredient['name'])])
+            ->orWhere('sku', $ingredient['name'])
+            ->first();
+
+        if (! $inventory) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Ingredient not tracked in inventory',
+            ]);
+        }
+
+        $requiredQuantity = ($ingredient['quantity'] ?? 0) * $recipeQuantity;
+
+        if ($requiredQuantity <= 0) {
+            return response()->json(['success' => true]);
+        }
+
+        if ($inventory->current_stock < $requiredQuantity) {
+            $requiredQuantity = $inventory->current_stock;
+        }
+
+        if ($requiredQuantity <= 0) {
+            return response()->json(['success' => true]);
+        }
+
+        $oldStock = $inventory->current_stock;
+        $newStock = $oldStock - $requiredQuantity;
+
+        $inventory->update([
+            'current_stock' => $newStock,
+            'last_updated' => now(),
+        ]);
+
+        StockTransaction::create([
+            'inventory_id' => $inventory->id,
+            'transaction_type' => 'sale',
+            'quantity' => $requiredQuantity,
+            'previous_stock' => $oldStock,
+            'new_stock' => $newStock,
+            'reference_type' => 'order',
+            'reference_id' => $orderId,
+            'notes' => "Stock used for recipe: {$ingredient['name']}",
+            'transaction_date' => now(),
+            'unit_cost' => $inventory->cost_per_unit,
+            'total_value' => $requiredQuantity * $inventory->cost_per_unit,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stock deducted successfully',
+        ]);
+    }
 } 

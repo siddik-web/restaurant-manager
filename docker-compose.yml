@@ -1,0 +1,130 @@
+# Shared Laravel API image — each container sets SERVICE_DOMAIN + DB_DATABASE
+
+x-api-service: &api-service
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - restaurant-net
+  restart: unless-stopped
+
+x-api-env: &api-env
+  APP_ENV: local
+  APP_DEBUG: "true"
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USERNAME: restaurant
+  DB_PASSWORD: restaurant_secret
+  CACHE_STORE: file
+  SESSION_DRIVER: file
+  QUEUE_CONNECTION: sync
+  GATEWAY_URL: http://gateway
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - restaurant-net
+
+  menu-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: MenuService
+      SERVICE_DOMAIN: menu
+      DB_DATABASE: menu_db
+
+  order-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: OrderService
+      SERVICE_DOMAIN: order
+      DB_DATABASE: order_db
+
+  table-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: TableService
+      SERVICE_DOMAIN: table
+      DB_DATABASE: table_db
+
+  kitchen-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: KitchenService
+      SERVICE_DOMAIN: kitchen
+      DB_DATABASE: kitchen_db
+
+  settings-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: SettingsService
+      SERVICE_DOMAIN: settings
+      DB_DATABASE: settings_db
+
+  inventory-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: InventoryService
+      SERVICE_DOMAIN: inventory
+      DB_DATABASE: inventory_db
+
+  reporting-service:
+    <<: *api-service
+    environment:
+      <<: *api-env
+      APP_NAME: ReportingService
+      SERVICE_DOMAIN: reporting
+      DB_DATABASE: reporting_db
+
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./js:/usr/share/nginx/html/js:ro
+      - ./app.js:/usr/share/nginx/html/app.js:ro
+    depends_on:
+      - menu-service
+      - order-service
+      - table-service
+      - kitchen-service
+      - settings-service
+      - inventory-service
+      - reporting-service
+    networks:
+      - restaurant-net
+    restart: unless-stopped
+
+networks:
+  restaurant-net:
+    driver: bridge
+
+volumes:
+  postgres_data:

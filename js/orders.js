@@ -2,17 +2,18 @@
 // Order management module for Alpine.js
 
 import api from './api.js';
+import { normalizeOrder } from './transform.js';
 
-export const createOrdersModule = (state) => ({
+export const createOrdersModule = () => ({
     // POS Functions
     addToOrder(recipe) {
         // Check if item already exists in order
-        const existingItem = state.currentOrder.items.find(item => item.id === recipe.id);
+        const existingItem = this.currentOrder.items.find(item => item.id === recipe.id);
         
         if (existingItem) {
             existingItem.quantity++;
         } else {
-            state.currentOrder.items.push({
+            this.currentOrder.items.push({
                 id: recipe.id,
                 name: recipe.name,
                 price: recipe.price,
@@ -25,21 +26,21 @@ export const createOrdersModule = (state) => ({
 
     updateItemQuantity(index, newQuantity) {
         if (newQuantity < 1) {
-            state.currentOrder.items.splice(index, 1);
+            this.currentOrder.items.splice(index, 1);
         } else {
-            state.currentOrder.items[index].quantity = newQuantity;
+            this.currentOrder.items[index].quantity = newQuantity;
         }
         this.calculateOrderTotals();
     },
 
     removeItem(index) {
-        state.currentOrder.items.splice(index, 1);
+        this.currentOrder.items.splice(index, 1);
         this.calculateOrderTotals();
     },
 
     clearCurrentOrder() {
         if (confirm('Are you sure you want to clear the current order?')) {
-            state.currentOrder = {
+            this.currentOrder = {
                 items: [],
                 subtotal: 0,
                 tax: 0,
@@ -52,11 +53,11 @@ export const createOrdersModule = (state) => ({
 
     saveOrderAsDraft() {
         const draft = {
-            ...state.currentOrder,
+            ...this.currentOrder,
             id: Date.now(),
             timestamp: new Date().toISOString(),
             status: 'draft',
-            type: state.orderType
+            type: this.orderType
         };
         
         // Save to localStorage
@@ -68,26 +69,26 @@ export const createOrdersModule = (state) => ({
     },
 
     calculateOrderTotals() {
-        state.currentOrder.subtotal = state.currentOrder.items.reduce(
+        this.currentOrder.subtotal = this.currentOrder.items.reduce(
             (sum, item) => sum + (item.price * item.quantity), 0
         );
         
         // Apply tax rate from settings
-        state.currentOrder.tax = state.currentOrder.subtotal * (state.settings.taxRate / 100);
+        this.currentOrder.tax = this.currentOrder.subtotal * (this.settings.taxRate / 100);
         
         // Apply delivery fee if delivery order
-        state.currentOrder.deliveryFee = state.orderType === 'delivery' ? state.settings.deliveryFee : 0;
+        this.currentOrder.deliveryFee = this.orderType === 'delivery' ? this.settings.deliveryFee : 0;
         
-        state.currentOrder.total = state.currentOrder.subtotal + state.currentOrder.tax + state.currentOrder.deliveryFee;
+        this.currentOrder.total = this.currentOrder.subtotal + this.currentOrder.tax + this.currentOrder.deliveryFee;
     },
 
     async placeOrder() {
         try {
             // Prepare order data for API
             const orderData = {
-                type: state.orderType,
-                table_number: state.currentOrder.tableNumber,
-                items: state.currentOrder.items.map(item => ({
+                type: this.orderType,
+                table_number: this.currentOrder.tableNumber,
+                items: this.currentOrder.items.map(item => ({
                     recipe_id: item.id,
                     quantity: item.quantity
                 })),
@@ -97,15 +98,15 @@ export const createOrdersModule = (state) => ({
             const response = await api.createOrder(orderData);
             
             if (response.success) {
-                const newOrder = response.data;
-                state.orders.push(newOrder);
+                const newOrder = normalizeOrder(response.data);
+                this.orders.push(newOrder);
                 
                 // Update table status if dine-in
-                if (state.orderType === 'dine-in' && state.currentOrder.tableNumber) {
-                    const table = state.tables.find(t => t.number === state.currentOrder.tableNumber);
+                if (this.orderType === 'dine-in' && this.currentOrder.tableNumber) {
+                    const table = this.tables.find(t => t.number === this.currentOrder.tableNumber);
                     if (table) {
                         table.status = 'occupied';
-                        localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                        localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                     }
                 }
                 
@@ -119,7 +120,7 @@ export const createOrdersModule = (state) => ({
                 this.generateReceipt(newOrder);
                 
                 // Reset current order
-                state.currentOrder = {
+                this.currentOrder = {
                     items: [],
                     subtotal: 0,
                     tax: 0,
@@ -129,7 +130,11 @@ export const createOrdersModule = (state) => ({
                 };
                 
                 // Switch to KDS view
-                state.currentTab = 'kds';
+                this.currentTab = 'kds';
+
+                if (typeof this.cacheAllData === 'function') {
+                    this.cacheAllData();
+                }
             } else {
                 alert('Error placing order: ' + (response.message || 'Unknown error'));
             }
@@ -144,10 +149,10 @@ export const createOrdersModule = (state) => ({
         try {
             const response = await api.request('patch', `/orders/${orderId}/status`, { status });
             if (response.success) {
-                const order = state.orders.find(o => o.id === orderId);
+                const order = this.orders.find(o => o.id === orderId);
                 if (order) {
                     order.status = status;
-                    localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                    localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 }
             }
         } catch (error) {
@@ -159,11 +164,11 @@ export const createOrdersModule = (state) => ({
         try {
             const response = await api.request('patch', `/orders/${orderId}/complete`);
             if (response.success) {
-                const order = state.orders.find(o => o.id === orderId);
+                const order = this.orders.find(o => o.id === orderId);
                 if (order) {
                     order.status = 'completed';
                     order.completedTime = Date.now();
-                    localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                    localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 }
             }
         } catch (error) {
@@ -173,27 +178,27 @@ export const createOrdersModule = (state) => ({
 
     // Enhanced KDS Functions
     getFilteredOrders() {
-        let filteredOrders = state.orders.filter(order => 
+        let filteredOrders = this.orders.filter(order => 
             ['new', 'preparing', 'ready'].includes(order.status)
         );
         
         // Apply filter
-        if (state.kdsFilter !== 'all') {
-            filteredOrders = filteredOrders.filter(order => order.type === state.kdsFilter);
+        if (this.kdsFilter !== 'all') {
+            filteredOrders = filteredOrders.filter(order => order.type === this.kdsFilter);
         }
         
         // Apply view filter
-        if (state.kdsView !== 'all') {
-            filteredOrders = filteredOrders.filter(order => order.status === state.kdsView);
+        if (this.kdsView !== 'all') {
+            filteredOrders = filteredOrders.filter(order => order.status === this.kdsView);
         }
         
         // Station filter
-        if (state.kdsStationFilter && state.kdsStationFilter !== 'all') {
-            filteredOrders = filteredOrders.filter(order => order.assignedStation === state.kdsStationFilter);
+        if (this.kdsStationFilter && this.kdsStationFilter !== 'all') {
+            filteredOrders = filteredOrders.filter(order => order.assignedStation === this.kdsStationFilter);
         }
         
         // Apply sorting
-        switch(state.kdsSort) {
+        switch(this.kdsSort) {
             case 'time':
                 filteredOrders.sort((a, b) => a.timestamp - b.timestamp);
                 break;
@@ -258,7 +263,7 @@ export const createOrdersModule = (state) => ({
         // Calculate estimated prep time based on items
         let totalTime = 0;
         order.items.forEach(item => {
-            const recipe = state.recipes.find(r => r.id === item.id);
+            const recipe = this.recipes.find(r => r.id === item.id);
             if (recipe) {
                 // Base time per item (could be stored in recipe)
                 totalTime += 5 * item.quantity; // 5 minutes per item
@@ -285,12 +290,12 @@ export const createOrdersModule = (state) => ({
             });
             
             if (response.success) {
-                const order = state.orders.find(o => o.id === orderId);
+                const order = this.orders.find(o => o.id === orderId);
                 if (order) {
                     order.assignedChef = chefName;
                     order.assignedStation = station;
                     order.assignedTime = Date.now();
-                    localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                    localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 }
             }
         } catch (error) {
@@ -300,12 +305,12 @@ export const createOrdersModule = (state) => ({
 
     async unassignOrder(orderId) {
         try {
-            const order = state.orders.find(o => o.id === orderId);
+            const order = this.orders.find(o => o.id === orderId);
             if (order) {
                 delete order.assignedChef;
                 delete order.assignedStation;
                 delete order.assignedTime;
-                localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
             }
         } catch (error) {
             console.error('Error unassigning order:', error);
@@ -313,7 +318,7 @@ export const createOrdersModule = (state) => ({
     },
 
     getKitchenStats() {
-        const todayOrders = state.orders.filter(order => {
+        const todayOrders = this.orders.filter(order => {
             const orderDate = new Date(order.timestamp).toDateString();
             const today = new Date().toDateString();
             return orderDate === today;
@@ -363,11 +368,11 @@ export const createOrdersModule = (state) => ({
         try {
             const response = await api.request('patch', `/orders/${orderId}/urgent`);
             if (response.success) {
-                const order = state.orders.find(o => o.id === orderId);
+                const order = this.orders.find(o => o.id === orderId);
                 if (order) {
                     order.urgent = true;
                     order.urgentTime = Date.now();
-                    localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                    localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 }
             }
         } catch (error) {
@@ -376,16 +381,16 @@ export const createOrdersModule = (state) => ({
     },
 
     unmarkOrderUrgent(orderId) {
-        const order = state.orders.find(o => o.id === orderId);
+        const order = this.orders.find(o => o.id === orderId);
         if (order) {
             order.urgent = false;
             delete order.urgentTime;
-            localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+            localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
         }
     },
 
     addOrderNote(orderId, note) {
-        const order = state.orders.find(o => o.id === orderId);
+        const order = this.orders.find(o => o.id === orderId);
         if (order) {
             if (!order.notes) order.notes = [];
             order.notes.push({
@@ -393,17 +398,17 @@ export const createOrdersModule = (state) => ({
                 timestamp: Date.now(),
                 type: 'kitchen'
             });
-            localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+            localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
         }
     },
 
     getOrderNotes(orderId) {
-        const order = state.orders.find(o => o.id === orderId);
+        const order = this.orders.find(o => o.id === orderId);
         return order?.notes || [];
     },
 
     getOrderPrepProgress(orderId) {
-        const order = state.orders.find(o => o.id === orderId);
+        const order = this.orders.find(o => o.id === orderId);
         if (!order) return 0;
         
         const age = Date.now() - order.timestamp;
@@ -413,7 +418,7 @@ export const createOrdersModule = (state) => ({
     },
 
     getKitchenEfficiency() {
-        const todayOrders = state.orders.filter(order => {
+        const todayOrders = this.orders.filter(order => {
             const orderDate = new Date(order.timestamp).toDateString();
             const today = new Date().toDateString();
             return orderDate === today;
@@ -433,7 +438,7 @@ export const createOrdersModule = (state) => ({
 
     // KDS Sound and Notifications
     playKdsSound() {
-        if (state.kdsSoundEnabled) {
+        if (this.kdsSoundEnabled) {
             const audio = document.getElementById('newOrderSound');
             if (audio) {
                 audio.play().catch(e => console.log('Audio play failed:', e));
@@ -442,7 +447,7 @@ export const createOrdersModule = (state) => ({
     },
 
     showKdsNotification(order) {
-        if (state.kdsNotifications && 'Notification' in window && Notification.permission === 'granted') {
+        if (this.kdsNotifications && 'Notification' in window && Notification.permission === 'granted') {
             new Notification('New Order', {
                 body: `Order #${order.id} - ${order.items.length} items`,
                 icon: '/favicon.ico'
@@ -452,16 +457,16 @@ export const createOrdersModule = (state) => ({
 
     // Receipt generation
     generateReceipt(order) {
-        state.currentReceipt = {
+        this.currentReceipt = {
             ...order,
             receiptNumber: 'R' + Date.now(),
             printDate: new Date().toLocaleDateString(),
             printTime: new Date().toLocaleTimeString(),
             server: 'Server 1'
         };
-        state.showReceipt = true;
+        this.showReceipt = true;
         
-        if (state.settings.autoPrint) {
+        if (this.settings.autoPrint) {
             setTimeout(() => this.printReceipt(), 500);
         }
     },
@@ -480,8 +485,8 @@ export const createOrdersModule = (state) => ({
                         font-family: 'Courier New', monospace; 
                         margin: 0; 
                         padding: 10px; 
-                        font-size: ${state.settings.fontSize}pt;
-                        width: ${state.settings.receiptWidth}mm;
+                        font-size: ${this.settings.fontSize}pt;
+                        width: ${this.settings.receiptWidth}mm;
                     }
                     .receipt { text-align: center; }
                     .header { margin-bottom: 10px; }
@@ -517,7 +522,7 @@ export const createOrdersModule = (state) => ({
     },
 
     generateReceiptHTML() {
-        const receipt = state.currentReceipt;
+        const receipt = this.currentReceipt;
         if (!receipt) {
             return '<div class="receipt">No receipt data available</div>';
         }
@@ -525,25 +530,25 @@ export const createOrdersModule = (state) => ({
         let html = '<div class="receipt">';
         
         // Header
-        if (state.settings.printHeader) {
-            if (state.settings.printLogo && state.settings.logo) {
-                html += `<img src="${state.settings.logo}" class="logo" alt="Logo">`;
+        if (this.settings.printHeader) {
+            if (this.settings.printLogo && this.settings.logo) {
+                html += `<img src="${this.settings.logo}" class="logo" alt="Logo">`;
             }
-            html += `<div class="title">${state.settings.restaurantName || 'Restaurant'}</div>`;
-            html += `<div class="info">${state.settings.address || ''}</div>`;
-            html += `<div class="info">${state.settings.phone || ''}</div>`;
-            html += `<div class="info">${state.settings.email || ''}</div>`;
+            html += `<div class="title">${this.settings.restaurantName || 'Restaurant'}</div>`;
+            html += `<div class="info">${this.settings.address || ''}</div>`;
+            html += `<div class="info">${this.settings.phone || ''}</div>`;
+            html += `<div class="info">${this.settings.email || ''}</div>`;
             html += '<div class="divider"></div>';
         }
         
         // Receipt Info
-        html += `<div class="info">${state.translations.receiptNumber || 'Receipt #'} ${receipt.receiptNumber || 'N/A'}</div>`;
-        html += `<div class="info">${state.translations.date || 'Date'}: ${receipt.printDate || new Date().toLocaleDateString()}</div>`;
-        html += `<div class="info">${state.translations.time || 'Time'}: ${receipt.printTime || new Date().toLocaleTimeString()}</div>`;
+        html += `<div class="info">${this.translations.receiptNumber || 'Receipt #'} ${receipt.receiptNumber || 'N/A'}</div>`;
+        html += `<div class="info">${this.translations.date || 'Date'}: ${receipt.printDate || new Date().toLocaleDateString()}</div>`;
+        html += `<div class="info">${this.translations.time || 'Time'}: ${receipt.printTime || new Date().toLocaleTimeString()}</div>`;
         if (receipt.tableNumber) {
-            html += `<div class="info">${state.translations.tableNumber || 'Table'}: ${receipt.tableNumber}</div>`;
+            html += `<div class="info">${this.translations.tableNumber || 'Table'}: ${receipt.tableNumber}</div>`;
         }
-        html += `<div class="info">${state.translations.orderType || 'Order Type'}: ${state.translations[receipt.type] || receipt.type}</div>`;
+        html += `<div class="info">${this.translations.orderType || 'Order Type'}: ${this.translations[receipt.type] || receipt.type}</div>`;
         html += '<div class="divider"></div>';
         
         // Items
@@ -554,7 +559,7 @@ export const createOrdersModule = (state) => ({
                     <div class="item">
                         <div class="item-name">${item.name || 'Unknown Item'}</div>
                         <div class="item-qty">${item.quantity || 0}</div>
-                        <div class="item-price">${state.formatPrice((item.price || 0) * (item.quantity || 0))}</div>
+                        <div class="item-price">${this.formatPrice((item.price || 0) * (item.quantity || 0))}</div>
                         <div class="clear"></div>
                     </div>
                 `;
@@ -566,18 +571,18 @@ export const createOrdersModule = (state) => ({
         
         // Totals
         html += '<div class="totals">';
-        html += `<div class="total-line">${state.translations.subtotal || 'Subtotal'}: ${state.formatPrice(receipt.subtotal || 0)}</div>`;
-        html += `<div class="total-line">${state.translations.tax || 'Tax'}: ${state.formatPrice(receipt.tax || 0)}</div>`;
+        html += `<div class="total-line">${this.translations.subtotal || 'Subtotal'}: ${this.formatPrice(receipt.subtotal || 0)}</div>`;
+        html += `<div class="total-line">${this.translations.tax || 'Tax'}: ${this.formatPrice(receipt.tax || 0)}</div>`;
         if (receipt.deliveryFee > 0) {
-            html += `<div class="total-line">${state.translations.deliveryFee || 'Delivery Fee'}: ${state.formatPrice(receipt.deliveryFee || 0)}</div>`;
+            html += `<div class="total-line">${this.translations.deliveryFee || 'Delivery Fee'}: ${this.formatPrice(receipt.deliveryFee || 0)}</div>`;
         }
-        html += `<div class="total-line grand-total">${state.translations.grandTotal || 'Grand Total'}: ${state.formatPrice(receipt.total || 0)}</div>`;
+        html += `<div class="total-line grand-total">${this.translations.grandTotal || 'Grand Total'}: ${this.formatPrice(receipt.total || 0)}</div>`;
         html += '</div>';
         
         // Footer
-        if (state.settings.printFooter) {
+        if (this.settings.printFooter) {
             html += '<div class="divider"></div>';
-            html += `<div class="footer">${state.settings.receiptFooter || 'Thank you for your business!'}</div>`;
+            html += `<div class="footer">${this.settings.receiptFooter || 'Thank you for your business!'}</div>`;
         }
         
         html += '</div>';

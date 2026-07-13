@@ -1,0 +1,50 @@
+---
+description: Alpine.js frontend modules, UI patterns, and offline API client conventions
+globs: "{index.html,app.js,js/**/*.js}"
+alwaysApply: false
+---
+
+# Frontend (Alpine.js)
+
+## Architecture
+
+- `js/app.js` composes modules into one Alpine `app` component via object spread.
+- Modules are factories: `createXModule(state)` returning methods that close over shared state.
+- `js/api.js` is the only HTTP layer (`API_BASE = '/api'`). Do not call `fetch` from feature modules.
+- Shared state lives in `js/state.js` (`createAppState`).
+
+## Entrypoint
+
+| File | Role |
+|------|------|
+| `js/app.js` | Live Alpine composition (loaded by `index.html` as `type="module"`) |
+| `js/*.js` | Feature modules — methods must use `this` |
+| `app.js` (root) | Legacy monolith — reference only |
+
+Load order: module script first, then Alpine CDN with `defer` (modules run before deferred classic scripts, so `alpine:init` listeners register in time).
+
+## Patterns
+
+- Tab state: `currentTab` (`pos`, `kds`, `recipes`, `tables`, `reports`, inventory UI via flags).
+- Forms: `showXForm`, `editingX`, `xForm` object; reset on cancel/save.
+- Translations: `translations.*` + `changeLanguage('en'|'ar')`; keep EN/AR keys in sync.
+- Persist key data under `restaurant_*` localStorage keys used by `api.localGet`.
+
+## API client
+
+```javascript
+await api.getRecipes();
+await api.createOrder(payload);
+await api.checkConnection(); // health probe — sets connectionStatus
+```
+
+- `api.connectionStatus`: `connected` | `offline` | `unavailable` | `unknown`
+- localStorage is a **cache for offline mode only** — not the primary store when online
+- Field names are normalized in `js/transform.js` (camelCase ↔ snake_case)
+- Extend `ApiClient` when adding endpoints; update `transform.js` for new entities
+
+## UI
+
+- Tailwind utility classes; brand colors `primary` (#0f766e) and `secondary` (#f97316).
+- Alpine directives in `index.html`; keep markup and state property names aligned.
+- Respect RTL (`:dir="direction"`) — avoid hard-coded left/right where logical properties work.

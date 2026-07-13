@@ -3,13 +3,13 @@
 
 import api from './api.js';
 
-export const createTablesModule = (state) => ({
+export const createTablesModule = () => ({
     // Table Management Functions
     addTable() {
-        state.editingTable = null;
-        state.tableForm = {
+        this.editingTable = null;
+        this.tableForm = {
             id: null,
-            number: state.tables.length + 1,
+            number: this.tables.length + 1,
             capacity: 4,
             status: 'available',
             location: '',
@@ -18,42 +18,42 @@ export const createTablesModule = (state) => ({
             customerName: '',
             customerPhone: ''
         };
-        state.showTableForm = true;
+        this.showTableForm = true;
     },
 
     editTable(table) {
-        state.editingTable = table;
-        state.tableForm = { ...table };
-        state.showTableForm = true;
+        this.editingTable = table;
+        this.tableForm = { ...table };
+        this.showTableForm = true;
     },
 
     async saveTable() {
         try {
             let response;
-            if (state.editingTable) {
+            if (this.editingTable) {
                 // Update existing table
-                response = await api.updateTable(state.tableForm.id, state.tableForm);
+                response = await api.updateTable(this.tableForm.id, this.tableForm);
             } else {
                 // Add new table
-                response = await api.createTable(state.tableForm);
+                response = await api.createTable(this.tableForm);
             }
 
             if (response.success) {
                 // Update local state
-                if (state.editingTable) {
-                    const index = state.tables.findIndex(t => t.id === state.tableForm.id);
+                if (this.editingTable) {
+                    const index = this.tables.findIndex(t => t.id === this.tableForm.id);
                     if (index !== -1) {
-                        state.tables[index] = response.data;
+                        this.tables[index] = response.data;
                     }
                 } else {
-                    state.tables.push(response.data);
+                    this.tables.push(response.data);
                 }
 
                 // Save to localStorage as fallback
-                localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 
-                state.showTableForm = false;
-                state.editingTable = null;
+                this.showTableForm = false;
+                this.editingTable = null;
                 this.resetTableForm();
             } else {
                 alert('Error saving table: ' + (response.message || 'Unknown error'));
@@ -69,8 +69,8 @@ export const createTablesModule = (state) => ({
             try {
                 const response = await api.deleteTable(id);
                 if (response.success) {
-                    state.tables = state.tables.filter(table => table.id !== id);
-                    localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                    this.tables = this.tables.filter(table => table.id !== id);
+                    localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 } else {
                     alert('Error deleting table: ' + (response.message || 'Unknown error'));
                 }
@@ -82,7 +82,7 @@ export const createTablesModule = (state) => ({
     },
 
     resetTableForm() {
-        state.tableForm = {
+        this.tableForm = {
             id: null,
             number: '',
             capacity: 4,
@@ -96,13 +96,13 @@ export const createTablesModule = (state) => ({
     },
 
     selectTable(tableNumber) {
-        state.currentOrder.tableNumber = tableNumber;
-        state.selectedTable = tableNumber;
+        this.currentOrder.tableNumber = tableNumber;
+        this.selectedTable = tableNumber;
     },
 
     async makeReservation(tableId) {
         try {
-            const table = state.tables.find(t => t.id === tableId);
+            const table = this.tables.find(t => t.id === tableId);
             if (table) {
                 const response = await api.request('post', `/tables/${tableId}/reservation`, {
                     customer_name: table.customerName,
@@ -112,7 +112,7 @@ export const createTablesModule = (state) => ({
 
                 if (response.success) {
                     table.status = 'reserved';
-                    localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                    localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 }
             }
         } catch (error) {
@@ -122,7 +122,7 @@ export const createTablesModule = (state) => ({
 
     async cancelReservation(tableId) {
         try {
-            const table = state.tables.find(t => t.id === tableId);
+            const table = this.tables.find(t => t.id === tableId);
             if (table) {
                 const response = await api.request('patch', `/tables/${tableId}/cancel-reservation`);
                 
@@ -131,7 +131,7 @@ export const createTablesModule = (state) => ({
                     table.reservationTime = null;
                     table.customerName = '';
                     table.customerPhone = '';
-                    localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                    localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 }
             }
         } catch (error) {
@@ -140,14 +140,14 @@ export const createTablesModule = (state) => ({
     },
 
     getTableRevenue(tableNumber) {
-        const tableOrders = state.orders.filter(order => 
+        const tableOrders = this.orders.filter(order => 
             order.tableNumber === tableNumber && order.status === 'completed'
         );
         return tableOrders.reduce((sum, order) => sum + order.total, 0);
     },
 
     getTableAverageOrder(tableNumber) {
-        const tableOrders = state.orders.filter(order => 
+        const tableOrders = this.orders.filter(order => 
             order.tableNumber === tableNumber && order.status === 'completed'
         );
         if (tableOrders.length === 0) return 0;
@@ -156,7 +156,7 @@ export const createTablesModule = (state) => ({
     },
 
     getTableOccupancyTime(tableNumber) {
-        const tableOrders = state.orders.filter(order => 
+        const tableOrders = this.orders.filter(order => 
             order.tableNumber === tableNumber
         );
         if (tableOrders.length === 0) return 0;
@@ -173,7 +173,7 @@ export const createTablesModule = (state) => ({
     },
 
     getTableOrders(tableNumber) {
-        return state.orders.filter(order => 
+        return this.orders.filter(order => 
             order.tableNumber === tableNumber && 
             ['new', 'preparing', 'ready'].includes(order.status)
         );
@@ -185,19 +185,19 @@ export const createTablesModule = (state) => ({
             
             if (response.success) {
                 // Complete all orders for this table
-                state.orders = state.orders.filter(order => order.tableNumber !== tableNumber);
-                localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                this.orders = this.orders.filter(order => order.tableNumber !== tableNumber);
+                localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 
                 // Mark table as available
-                const table = state.tables.find(t => t.number === tableNumber);
+                const table = this.tables.find(t => t.number === tableNumber);
                 if (table) {
                     table.status = 'available';
-                    localStorage.setItem('restaurant_tables', JSON.stringify(state.tables));
+                    localStorage.setItem('restaurant_tables', JSON.stringify(this.tables));
                 }
                 
                 // Clear current order if it's for this table
-                if (state.currentOrder.tableNumber === tableNumber) {
-                    state.currentOrder = {
+                if (this.currentOrder.tableNumber === tableNumber) {
+                    this.currentOrder = {
                         items: [],
                         subtotal: 0,
                         tax: 0,
@@ -205,7 +205,7 @@ export const createTablesModule = (state) => ({
                         tableNumber: null,
                         deliveryFee: 0
                     };
-                    state.selectedTable = null;
+                    this.selectedTable = null;
                 }
             }
         } catch (error) {
@@ -226,7 +226,7 @@ export const createTablesModule = (state) => ({
 
     // Table analytics and statistics
     getTableStats(tableNumber) {
-        const tableOrders = state.orders.filter(order => 
+        const tableOrders = this.orders.filter(order => 
             order.tableNumber === tableNumber
         );
         
@@ -245,7 +245,7 @@ export const createTablesModule = (state) => ({
 
     // Table filtering and search
     getFilteredTables() {
-        let filteredTables = [...state.tables];
+        let filteredTables = [...this.tables];
         
         // Filter by status
         const statusFilter = document.getElementById('tableStatusFilter')?.value;
@@ -278,13 +278,13 @@ export const createTablesModule = (state) => ({
 
     // Table locations
     getTableLocations() {
-        const locations = [...new Set(state.tables.map(table => table.location).filter(Boolean))];
+        const locations = [...new Set(this.tables.map(table => table.location).filter(Boolean))];
         return locations.sort();
     },
 
     // Available tables for selection
     getAvailableTables() {
-        return state.tables.filter(table => 
+        return this.tables.filter(table => 
             table.status === 'available' || table.status === 'cleaning'
         ).sort((a, b) => a.number - b.number);
     },
@@ -292,7 +292,7 @@ export const createTablesModule = (state) => ({
     // Table capacity groups
     getTablesByCapacity() {
         const capacityGroups = {};
-        state.tables.forEach(table => {
+        this.tables.forEach(table => {
             if (!capacityGroups[table.capacity]) {
                 capacityGroups[table.capacity] = [];
             }
@@ -311,7 +311,7 @@ export const createTablesModule = (state) => ({
             maintenance: 0
         };
         
-        state.tables.forEach(table => {
+        this.tables.forEach(table => {
             if (summary.hasOwnProperty(table.status)) {
                 summary[table.status]++;
             }
@@ -322,10 +322,10 @@ export const createTablesModule = (state) => ({
 
     // Table utilization rate
     getTableUtilizationRate() {
-        const totalTables = state.tables.length;
+        const totalTables = this.tables.length;
         if (totalTables === 0) return 0;
         
-        const occupiedTables = state.tables.filter(table => 
+        const occupiedTables = this.tables.filter(table => 
             table.status === 'occupied'
         ).length;
         
@@ -334,7 +334,7 @@ export const createTablesModule = (state) => ({
 
     // Table turnover time (average time a table is occupied)
     getAverageTableTurnoverTime() {
-        const completedOrders = state.orders.filter(order => 
+        const completedOrders = this.orders.filter(order => 
             order.status === 'completed' && order.tableNumber
         );
         

@@ -8,12 +8,16 @@ use App\Models\Recipe;
 use App\Models\Table;
 use App\Models\Chef;
 use App\Models\Station;
+use App\Services\ReportDataResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
+    public function __construct(private ReportDataResolver $reportData)
+    {
+    }
     /**
      * Display a listing of the resource.
      */
@@ -60,8 +64,8 @@ class ReportController extends Controller
     public function dailySales(Request $request): JsonResponse
     {
         $date = $request->get('date', now()->toDateString());
-        
-        $orders = Order::whereDate('created_at', $date)->get();
+
+        $orders = $this->reportData->orders(['date' => $date]);
         
         $totalSales = $orders->sum('total');
         $totalOrders = $orders->count();
@@ -95,10 +99,8 @@ class ReportController extends Controller
     {
         $year = $request->get('year', now()->year);
         $month = $request->get('month', now()->month);
-        
-        $orders = Order::whereYear('created_at', $year)
-                      ->whereMonth('created_at', $month)
-                      ->get();
+
+        $orders = $this->reportData->orders(['year' => $year, 'month' => $month]);
         
         $totalSales = $orders->sum('total');
         $totalOrders = $orders->count();
@@ -228,8 +230,8 @@ class ReportController extends Controller
     public function kitchenStats(Request $request): JsonResponse
     {
         $date = $request->get('date', now()->toDateString());
-        
-        $orders = Order::whereDate('created_at', $date)->get();
+
+        $orders = $this->reportData->orders(['date' => $date]);
         
         $totalOrders = $orders->count();
         $completedOrders = $orders->where('status', 'completed')->count();

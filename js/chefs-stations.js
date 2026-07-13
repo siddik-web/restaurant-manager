@@ -3,16 +3,16 @@
 
 import api from './api.js';
 
-export const createChefsStationsModule = (state) => ({
+export const createChefsStationsModule = () => ({
     // Chef Management Functions
     async addChef() {
-        if (state.newChefName && !state.chefs.some(c => c.name === state.newChefName)) {
+        if (this.newChefName && !this.chefs.some(c => c.name === this.newChefName)) {
             try {
-                const response = await api.createChef({ name: state.newChefName });
+                const response = await api.createChef({ name: this.newChefName });
                 if (response.success) {
-                    state.chefs.push(response.data);
-                    localStorage.setItem('restaurant_chefs', JSON.stringify(state.chefs));
-                    state.newChefName = '';
+                    this.chefs.push(response.data);
+                    localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
+                    this.newChefName = '';
                 } else {
                     alert('Error adding chef: ' + (response.message || 'Unknown error'));
                 }
@@ -25,25 +25,25 @@ export const createChefsStationsModule = (state) => ({
 
     async removeChef(idx) {
         try {
-            const chef = state.chefs[idx];
+            const chef = this.chefs[idx];
             if (chef && chef.id) {
                 const response = await api.deleteChef(chef.id);
                 if (response.success) {
-                    state.chefs.splice(idx, 1);
-                    localStorage.setItem('restaurant_chefs', JSON.stringify(state.chefs));
+                    this.chefs.splice(idx, 1);
+                    localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
                 } else {
                     alert('Error removing chef: ' + (response.message || 'Unknown error'));
                 }
             } else {
                 // Fallback for chefs without IDs (localStorage only)
-                state.chefs.splice(idx, 1);
-                localStorage.setItem('restaurant_chefs', JSON.stringify(state.chefs));
+                this.chefs.splice(idx, 1);
+                localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
             }
         } catch (error) {
             console.error('Error removing chef:', error);
             // Fallback to localStorage only
-            state.chefs.splice(idx, 1);
-            localStorage.setItem('restaurant_chefs', JSON.stringify(state.chefs));
+            this.chefs.splice(idx, 1);
+            localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
         }
     },
 
@@ -51,10 +51,10 @@ export const createChefsStationsModule = (state) => ({
         try {
             const response = await api.updateChef(chefId, data);
             if (response.success) {
-                const index = state.chefs.findIndex(c => c.id === chefId);
+                const index = this.chefs.findIndex(c => c.id === chefId);
                 if (index !== -1) {
-                    state.chefs[index] = response.data;
-                    localStorage.setItem('restaurant_chefs', JSON.stringify(state.chefs));
+                    this.chefs[index] = response.data;
+                    localStorage.setItem('restaurant_chefs', JSON.stringify(this.chefs));
                 }
             }
         } catch (error) {
@@ -64,13 +64,13 @@ export const createChefsStationsModule = (state) => ({
 
     // Station Management Functions
     async addStation() {
-        if (state.newStationName && !state.stations.some(s => s.name === state.newStationName)) {
+        if (this.newStationName && !this.stations.some(s => s.name === this.newStationName)) {
             try {
-                const response = await api.createStation({ name: state.newStationName });
+                const response = await api.createStation({ name: this.newStationName });
                 if (response.success) {
-                    state.stations.push(response.data);
-                    localStorage.setItem('restaurant_stations', JSON.stringify(state.stations));
-                    state.newStationName = '';
+                    this.stations.push(response.data);
+                    localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
+                    this.newStationName = '';
                 } else {
                     alert('Error adding station: ' + (response.message || 'Unknown error'));
                 }
@@ -83,25 +83,25 @@ export const createChefsStationsModule = (state) => ({
 
     async removeStation(idx) {
         try {
-            const station = state.stations[idx];
+            const station = this.stations[idx];
             if (station && station.id) {
                 const response = await api.deleteStation(station.id);
                 if (response.success) {
-                    state.stations.splice(idx, 1);
-                    localStorage.setItem('restaurant_stations', JSON.stringify(state.stations));
+                    this.stations.splice(idx, 1);
+                    localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
                 } else {
                     alert('Error removing station: ' + (response.message || 'Unknown error'));
                 }
             } else {
                 // Fallback for stations without IDs (localStorage only)
-                state.stations.splice(idx, 1);
-                localStorage.setItem('restaurant_stations', JSON.stringify(state.stations));
+                this.stations.splice(idx, 1);
+                localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
             }
         } catch (error) {
             console.error('Error removing station:', error);
             // Fallback to localStorage only
-            state.stations.splice(idx, 1);
-            localStorage.setItem('restaurant_stations', JSON.stringify(state.stations));
+            this.stations.splice(idx, 1);
+            localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
         }
     },
 
@@ -109,10 +109,10 @@ export const createChefsStationsModule = (state) => ({
         try {
             const response = await api.updateStation(stationId, data);
             if (response.success) {
-                const index = state.stations.findIndex(s => s.id === stationId);
+                const index = this.stations.findIndex(s => s.id === stationId);
                 if (index !== -1) {
-                    state.stations[index] = response.data;
-                    localStorage.setItem('restaurant_stations', JSON.stringify(state.stations));
+                    this.stations[index] = response.data;
+                    localStorage.setItem('restaurant_stations', JSON.stringify(this.stations));
                 }
             }
         } catch (error) {
@@ -129,18 +129,18 @@ export const createChefsStationsModule = (state) => ({
             });
             
             if (response.success) {
-                const order = state.orders.find(o => o.id === orderId);
+                const order = this.orders.find(o => o.id === orderId);
                 if (order) {
                     order.assignedChef = chefName;
                     order.assignedStation = stationName;
                     order.assignedTime = Date.now();
-                    localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                    localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
                 }
                 
-                state.showChefAssignModal = false;
-                state.chefAssignOrderId = null;
-                state.chefAssignName = '';
-                state.chefAssignStation = '';
+                this.showChefAssignModal = false;
+                this.chefAssignOrderId = null;
+                this.chefAssignName = '';
+                this.chefAssignStation = '';
             }
         } catch (error) {
             console.error('Error assigning order to chef/station:', error);
@@ -149,12 +149,12 @@ export const createChefsStationsModule = (state) => ({
 
     async unassignOrderChefStation(orderId) {
         try {
-            const order = state.orders.find(o => o.id === orderId);
+            const order = this.orders.find(o => o.id === orderId);
             if (order) {
                 delete order.assignedChef;
                 delete order.assignedStation;
                 delete order.assignedTime;
-                localStorage.setItem('restaurant_orders', JSON.stringify(state.orders));
+                localStorage.setItem('restaurant_orders', JSON.stringify(this.orders));
             }
         } catch (error) {
             console.error('Error unassigning order from chef/station:', error);
@@ -163,7 +163,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Chef and Station Statistics
     getChefStats(chefName) {
-        const chefOrders = state.orders.filter(order => 
+        const chefOrders = this.orders.filter(order => 
             order.assignedChef === chefName
         );
         
@@ -209,7 +209,7 @@ export const createChefsStationsModule = (state) => ({
     },
 
     getStationStats(stationName) {
-        const stationOrders = state.orders.filter(order => 
+        const stationOrders = this.orders.filter(order => 
             order.assignedStation === stationName
         );
         
@@ -258,7 +258,7 @@ export const createChefsStationsModule = (state) => ({
     getEstimatedPrepTime(order) {
         let totalTime = 0;
         order.items.forEach(item => {
-            const recipe = state.recipes.find(r => r.id === item.id);
+            const recipe = this.recipes.find(r => r.id === item.id);
             if (recipe) {
                 totalTime += 5 * item.quantity; // 5 minutes per item
             }
@@ -268,17 +268,17 @@ export const createChefsStationsModule = (state) => ({
 
     // Get active chefs
     getActiveChefs() {
-        return state.chefs.filter(chef => chef.isActive !== false);
+        return this.chefs.filter(chef => chef.isActive !== false);
     },
 
     // Get active stations
     getActiveStations() {
-        return state.stations.filter(station => station.isActive !== false);
+        return this.stations.filter(station => station.isActive !== false);
     },
 
     // Get chef specialties (based on most cooked recipes)
     getChefSpecialties(chefName) {
-        const chefOrders = state.orders.filter(order => 
+        const chefOrders = this.orders.filter(order => 
             order.assignedChef === chefName && order.status === 'completed'
         );
         
@@ -300,7 +300,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Get station workload
     getStationWorkload(stationName) {
-        const stationOrders = state.orders.filter(order => 
+        const stationOrders = this.orders.filter(order => 
             order.assignedStation === stationName && 
             ['new', 'preparing'].includes(order.status)
         );
@@ -310,7 +310,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Get chef workload
     getChefWorkload(chefName) {
-        const chefOrders = state.orders.filter(order => 
+        const chefOrders = this.orders.filter(order => 
             order.assignedChef === chefName && 
             ['new', 'preparing'].includes(order.status)
         );
@@ -320,7 +320,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Get available chefs (not overloaded)
     getAvailableChefs() {
-        return state.chefs.filter(chef => {
+        return this.chefs.filter(chef => {
             const workload = this.getChefWorkload(chef.name);
             return workload < 3; // Consider available if less than 3 orders
         });
@@ -328,7 +328,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Get available stations (not overloaded)
     getAvailableStations() {
-        return state.stations.filter(station => {
+        return this.stations.filter(station => {
             const workload = this.getStationWorkload(station.name);
             return workload < 5; // Consider available if less than 5 orders
         });
@@ -336,7 +336,7 @@ export const createChefsStationsModule = (state) => ({
 
     // Auto-assign order to best available chef/station
     autoAssignOrder(orderId) {
-        const order = state.orders.find(o => o.id === orderId);
+        const order = this.orders.find(o => o.id === orderId);
         if (!order) return;
         
         // Find available chef with least workload
@@ -368,7 +368,7 @@ export const createChefsStationsModule = (state) => ({
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
         
-        const chefOrders = state.orders.filter(order => 
+        const chefOrders = this.orders.filter(order => 
             order.assignedChef === chefName && 
             order.status === 'completed' &&
             new Date(order.timestamp) >= cutoffDate

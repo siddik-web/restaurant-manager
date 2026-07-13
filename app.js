@@ -1,3 +1,7 @@
+// LEGACY — NOT LOADED by index.html. The live app is js/app.js (ES modules).
+// This file uses localStorage only and does not connect to the Laravel API.
+// Kept for reference during migration; do not add new features here.
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('app', () => ({
         // App state

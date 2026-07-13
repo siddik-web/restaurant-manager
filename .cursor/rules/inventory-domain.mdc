@@ -1,0 +1,36 @@
+---
+description: Inventory, stock transactions, purchases, suppliers, and waste domain rules
+globs: "{js/inventory.js,restaurant-api/app/**/{Inventory,Supplier,Purchase,PurchaseItem,Waste,StockTransaction}*,restaurant-api/database/**/*{inventory,supplier,purchase,waste,stock}*}"
+alwaysApply: false
+---
+
+# Inventory Domain
+
+## Entities
+
+| Model | Role |
+|-------|------|
+| `Inventory` | Stock item (sku, levels, cost, expiry, supplier) |
+| `Supplier` | Vendor + performance |
+| `Purchase` / `PurchaseItem` | PO + line items; receive flow updates stock |
+| `Waste` | Loss records; usually deducts stock |
+| `StockTransaction` | Audit trail for every stock movement |
+
+## Invariants
+
+1. **Never change `current_stock` without a `StockTransaction`** (adjust, receive, waste, order deduct).
+2. Order creation should deduct recipe ingredient stock and log transactions.
+3. Purchase `receive-items` / status transitions must update inventory consistently.
+4. Alerts: low stock (`current <= min`), out of stock (`<= 0`), expiring (near `expiry_date`).
+
+## API surface (keep in sync with `js/api.js` / inventory module)
+
+- `PATCH /api/inventory/{id}/adjust-stock`
+- `GET /api/inventory/alerts/low-stock|expiring`
+- `GET /api/inventory/{id}/transactions`
+- Purchases: `PATCH .../status`, `POST .../receive-items`
+- Waste + supplier performance/report endpoints under `/api/reports/*`
+
+## Frontend
+
+Inventory UI lives under inventory tab flags in Alpine state (`inventoryTab`: inventory, purchases, suppliers, waste, reports). Keep modular logic in `js/inventory.js`.

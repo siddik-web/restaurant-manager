@@ -3,13 +3,14 @@
 
 import api from './api.js';
 
-export const createInventoryModule = (state) => ({
+export const createInventoryModule = () => ({
     // Inventory state
     inventory: [],
     suppliers: [],
     purchases: [],
     waste: [],
     inventoryAlerts: [],
+    inventoryTab: 'inventory', // inventory, purchases, suppliers, waste, reports
     
     // Form states
     showInventoryForm: false,
@@ -73,19 +74,24 @@ export const createInventoryModule = (state) => ({
     
     // Load all inventory-related data from API
     async loadInventory() {
-        // Inventory
-        const invRes = await api.request('get', '/inventory');
-        this.inventory = invRes.success ? (invRes.data.data || invRes.data) : [];
-        // Suppliers
-        const supRes = await api.request('get', '/suppliers');
-        this.suppliers = supRes.success ? (supRes.data.data || supRes.data) : [];
-        // Purchases
-        const purRes = await api.request('get', '/purchases');
-        this.purchases = purRes.success ? (purRes.data.data || purRes.data) : [];
-        // Waste
-        const wasteRes = await api.request('get', '/waste');
-        this.waste = wasteRes.success ? (wasteRes.data.data || wasteRes.data) : [];
-        // Alerts
+        const loadList = async (path, cacheKey, assign) => {
+            const res = await api.request('get', path);
+            if (res.offline) {
+                assign(JSON.parse(localStorage.getItem(cacheKey) || '[]'));
+                return;
+            }
+            assign(api.unwrapList(res));
+        };
+
+        await loadList('/inventory?per_page=500', 'restaurant_inventory', (data) => { this.inventory = data; });
+        await loadList('/suppliers?per_page=500', 'restaurant_suppliers', (data) => { this.suppliers = data; });
+        await loadList('/purchases?per_page=500', 'restaurant_purchases', (data) => { this.purchases = data; });
+        await loadList('/waste?per_page=500', 'restaurant_waste', (data) => { this.waste = data; });
+
+        if (this.dataSource === 'api' && typeof this.cacheAllData === 'function') {
+            this.cacheAllData();
+        }
+
         await this.updateInventoryAlerts();
     },
     
@@ -152,33 +158,7 @@ export const createInventoryModule = (state) => ({
         }
     },
     
-    // Automatic stock deduction from orders
-    async deductStockFromOrder(order) {
-        try {
-            for (const orderItem of order.items) {
-                const recipe = state.recipes.find(r => r.id === orderItem.id);
-                if (recipe && recipe.ingredients) {
-                    for (const ingredient of recipe.ingredients) {
-                        const inventoryItem = this.inventory.find(item => 
-                            item.name.toLowerCase() === ingredient.name.toLowerCase()
-                        );
-                        
-                        if (inventoryItem) {
-                            const totalQuantity = ingredient.quantity * orderItem.quantity;
-                            await this.updateStock(
-                                inventoryItem.id, 
-                                totalQuantity, 
-                                'subtract', 
-                                `Order #${order.id} - ${recipe.name}`
-                            );
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error deducting stock from order:', error);
-        }
-    },
+    
     
     // Get stock transactions
     async getStockTransactions(itemId = null) {
@@ -786,12 +766,5 @@ export const createInventoryModule = (state) => ({
     async initInventory() {
         await this.loadInventory();
         await this.updateInventoryAlerts();
-    }
-});
-
-// Initialize inventory module when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.inventory) {
-        window.inventory.initInventory();
     }
 }); 

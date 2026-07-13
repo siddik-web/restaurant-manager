@@ -1,0 +1,15 @@
+CREATE USER restaurant WITH PASSWORD 'restaurant_secret';
+CREATE DATABASE menu_db OWNER restaurant;
+CREATE DATABASE order_db OWNER restaurant;
+CREATE DATABASE table_db OWNER restaurant;
+CREATE DATABASE kitchen_db OWNER restaurant;
+CREATE DATABASE settings_db OWNER restaurant;
+CREATE DATABASE inventory_db OWNER restaurant;
+CREATE DATABASE reporting_db OWNER restaurant;
+GRANT ALL PRIVILEGES ON DATABASE menu_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE order_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE table_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE kitchen_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE settings_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE inventory_db TO restaurant;
+GRANT ALL PRIVILEGES ON DATABASE reporting_db TO restaurant;
