@@ -1,10 +1,70 @@
 document.addEventListener('alpine:init', () => {
+    const api = window.RestaurantApi;
+    const M = api.mappers;
+
+    // Collections mirrored from the API. Order matters when loading: suppliers
+    // before inventory/purchases (supplier names resolve to ids), recipes before orders.
+    const SYNCED = {
+        suppliers: { path: '/suppliers', mapper: M.supplier, persist: 'saveSuppliers' },
+        recipes: { path: '/recipes', mapper: M.recipe, persist: 'saveRecipes' },
+        inventory: { path: '/inventory', mapper: M.inventory, persist: 'saveInventory' },
+        tables: { path: '/tables', mapper: M.table, persist: 'saveTables' },
+        chefs: { path: '/chefs', mapper: M.staff, persist: 'saveChefs' },
+        stations: { path: '/stations', mapper: M.staff, persist: 'saveStations' },
+        orders: { path: '/orders', mapper: M.order, persist: 'saveOrders', affectsStock: true },
+        purchases: { path: '/purchases', mapper: M.purchase, persist: 'savePurchases' },
+        waste: { path: '/waste', mapper: M.waste, persist: 'persistWaste', affectsStock: true, createOnly: true },
+    };
+
+    // A snapshot holds the last payload the server confirmed for each record id.
+    // Syncing diffs the UI's collection against it. Snapshots live in localStorage
+    // so other tabs and later page loads (e.g. after working offline) share them.
+    // A missing snapshot means the collection was never loaded from the server,
+    // so nothing local (demo defaults, old browser-only data) is pushed.
+    const SNAPSHOT_PREFIX = 'restaurant_sync_';
+    const memorySnapshots = {};
+    const syncChains = {};
+    const pendingStockReasons = {};
+    const serverIds = {}; // temporary local id -> id assigned by the server
+
+    const readSnapshot = (name) => {
+        try {
+            const raw = localStorage.getItem(SNAPSHOT_PREFIX + name);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {
+            // Fall back to the in-memory copy
+        }
+        return memorySnapshots[name] || null;
+    };
+
+    const writeSnapshot = (name, snapshot) => {
+        memorySnapshots[name] = snapshot;
+        try {
+            if (snapshot) {
+                localStorage.setItem(SNAPSHOT_PREFIX + name, JSON.stringify(snapshot));
+            } else {
+                localStorage.removeItem(SNAPSHOT_PREFIX + name);
+            }
+        } catch (e) {
+            // Keep the in-memory copy only
+        }
+    };
+
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
     Alpine.data('app', () => ({
         // App state
         currentTab: 'pos',
         language: 'en',
         direction: 'ltr',
         orderType: 'dine-in',
+
+        // API auth & sync
+        isAuthenticated: !!window.RestaurantApi.getToken(),
+        currentUser: null,
+        loginForm: { email: '', password: '', error: '', loading: false },
+        syncStatus: 'idle', // idle, syncing, offline, error
+        syncError: '',
         
         // Inventory Management
         showInventory: false,
@@ -703,6 +763,270 @@ document.addEventListener('alpine:init', () => {
             
             // Initialize real-time sync
             this.initRealtimeSync();
+
+            // Server sync: drop to the login screen when the token is rejected,
+            // and push offline changes when the connection returns
+            window.addEventListener('api:unauthorized', () => this.handleUnauthorized());
+            window.addEventListener('online', () => this.syncAll().then(() => this.bootstrapFromApi()));
+            if (this.isAuthenticated) {
+                this.bootstrapFromApi();
+            }
+        },
+
+        // ===== API AUTH & SYNC =====
+
+        async login() {
+            this.loginForm.loading = true;
+            this.loginForm.error = '';
+            try {
+                this.currentUser = await api.login(this.loginForm.email, this.loginForm.password);
+                this.isAuthenticated = true;
+                this.loginForm.password = '';
+                await this.bootstrapFromApi();
+            } catch (error) {
+                this.loginForm.error = error.isNetworkError
+                    ? 'Cannot reach the server. Check that the API is running.'
+                    : error.message;
+            } finally {
+                this.loginForm.loading = false;
+            }
+        },
+
+        async logout() {
+            await api.logout().catch(() => {});
+            this.handleUnauthorized();
+        },
+
+        handleUnauthorized() {
+            this.isAuthenticated = false;
+            this.currentUser = null;
+            // Forget server state so nothing is pushed under the next login
+            [...Object.keys(SYNCED), 'settings'].forEach(name => writeSnapshot(name, null));
+        },
+
+        // Load everything from the server, first pushing any changes made offline
+        async bootstrapFromApi() {
+            try {
+                if (!this.currentUser) {
+                    this.currentUser = await api.currentUser();
+                }
+                await this.refreshSettings();
+                for (const name of Object.keys(SYNCED)) {
+                    await this.queueRefresh(name);
+                }
+            } catch (error) {
+                this.reportSyncError(error);
+            }
+        },
+
+        reportSyncError(error, context = '') {
+            if (error.isNetworkError) {
+                this.syncStatus = 'offline';
+                this.syncError = 'Offline: changes are kept on this device and will sync when the server is reachable.';
+            } else if (error.status !== 401) {
+                this.syncStatus = 'error';
+                this.syncError = context ? `${context}: ${error.message}` : error.message;
+            }
+        },
+
+        dismissSyncError() {
+            this.syncError = '';
+            this.syncStatus = 'idle';
+        },
+
+        supplierIdFor(name) {
+            if (!name) return null;
+            const supplier = this.suppliers.find(s => s.name.toLowerCase() === String(name).toLowerCase());
+            return supplier && readSnapshot('suppliers')?.[supplier.id] ? supplier.id : null;
+        },
+
+        // The payload compared against the snapshot (what an update would send)
+        syncPayload(name, item) {
+            if (name === 'inventory') return M.inventory.toApi(item, this.supplierIdFor(item.supplier));
+            if (name === 'purchases') return M.purchase.toApi(item, this.supplierIdFor(item.supplier));
+            return SYNCED[name].mapper.toApi(item);
+        },
+
+        async createPayload(name, item) {
+            if (name === 'orders') return M.order.toApiCreate(item);
+            if (name === 'purchases') {
+                return M.purchase.toApiCreate(item, await this.ensureSupplier(item.supplier));
+            }
+            return this.syncPayload(name, item);
+        },
+
+        // Purchases reference suppliers by name; create the supplier if it is new
+        async ensureSupplier(name) {
+            const existing = this.supplierIdFor(name);
+            if (existing || !name) return existing;
+            await this.queueSync('suppliers');
+            if (this.supplierIdFor(name)) return this.supplierIdFor(name);
+            const result = await api.request('POST', '/suppliers', { name });
+            const supplier = M.supplier.fromApi(result.data);
+            this.suppliers.push(supplier);
+            const snapshot = readSnapshot('suppliers') || {};
+            snapshot[supplier.id] = M.supplier.toApi(supplier);
+            writeSnapshot('suppliers', snapshot);
+            this.saveSuppliers();
+            return supplier.id;
+        },
+
+        // Serialize work per collection so a sync never races another sync or refresh
+        enqueue(name, task) {
+            const run = (syncChains[name] || Promise.resolve()).then(task);
+            syncChains[name] = run.catch(() => {});
+            return run;
+        },
+
+        queueSync(name) {
+            if (!this.isAuthenticated || !readSnapshot(name)) return Promise.resolve();
+            return this.enqueue(name, () => this.syncCollection(name));
+        },
+
+        queueRefresh(name) {
+            if (!this.isAuthenticated) return Promise.resolve();
+            return this.enqueue(name, async () => {
+                await this.syncCollection(name);
+                await this.refreshCollection(name);
+            });
+        },
+
+        async refreshCollection(name) {
+            const config = SYNCED[name];
+            const records = await api.fetchAll(config.path);
+            const items = records.map(config.mapper.fromApi);
+            const snapshot = {};
+            this[name] = items;
+            items.forEach(item => {
+                snapshot[item.id] = this.syncPayload(name, item);
+            });
+            writeSnapshot(name, snapshot);
+            this[config.persist]();
+            if (this.syncStatus === 'offline') this.dismissSyncError();
+        },
+
+        // Push local creates, updates and deletes for one collection
+        async syncCollection(name) {
+            const snapshot = readSnapshot(name);
+            if (!this.isAuthenticated || !snapshot) return;
+
+            const config = SYNCED[name];
+            let stockChanged = false;
+            let changed = false;
+
+            this.syncStatus = 'syncing';
+            try {
+                for (const item of [...this[name]]) {
+                    if (item.id === undefined || item.id === null) {
+                        item.id = `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                    }
+                    const tempId = item.id;
+
+                    if (!(tempId in snapshot)) {
+                        try {
+                            const result = await api.request('POST', config.path, await this.createPayload(name, item));
+                            // Look the item up again: the array may have been replaced meanwhile
+                            const current = this[name].find(i => i.id === tempId) || item;
+                            current.id = result.data.id;
+                            serverIds[tempId] = current.id;
+                            if (name === 'purchases' || name === 'waste') {
+                                Object.assign(current, config.mapper.fromApi(result.data));
+                            }
+                            snapshot[current.id] = this.syncPayload(name, current);
+                            stockChanged = stockChanged || !!config.affectsStock;
+                            changed = true;
+                        } catch (error) {
+                            if (error.isNetworkError) throw error;
+                            this.reportSyncError(error, `Could not save ${name.replace(/s$/, '')} "${item.name || item.id}"`);
+                        }
+                        continue;
+                    }
+
+                    if (config.createOnly) continue;
+
+                    const payload = this.syncPayload(name, item);
+                    const previous = snapshot[item.id];
+                    const diff = {};
+                    Object.keys(payload).forEach(key => {
+                        if (!same(payload[key], previous[key])) diff[key] = payload[key];
+                    });
+                    if (!Object.keys(diff).length) continue;
+
+                    try {
+                        if (name === 'inventory' && 'current_stock' in diff) {
+                            await api.request('PATCH', `/inventory/${item.id}/adjust-stock`, {
+                                quantity: diff.current_stock,
+                                adjustment_type: 'set',
+                                reason: pendingStockReasons[item.id] || 'Adjusted from POS',
+                            });
+                            delete pendingStockReasons[item.id];
+                            delete diff.current_stock;
+                        }
+                        if (Object.keys(diff).length) {
+                            await api.request('PUT', `${config.path}/${item.id}`, diff);
+                        }
+                        snapshot[item.id] = payload;
+                        changed = true;
+                    } catch (error) {
+                        if (error.isNetworkError) throw error;
+                        this.reportSyncError(error, `Could not update ${name.replace(/s$/, '')} "${item.name || item.id}"`);
+                    }
+                }
+
+                const localIds = new Set(this[name].map(i => String(i.id)));
+                for (const id of Object.keys(snapshot)) {
+                    if (localIds.has(id)) continue;
+                    try {
+                        await api.request('DELETE', `${config.path}/${id}`);
+                    } catch (error) {
+                        if (error.isNetworkError) throw error;
+                        if (error.status !== 404) {
+                            this.reportSyncError(error, `Could not delete ${name.replace(/s$/, '')}`);
+                            continue;
+                        }
+                    }
+                    delete snapshot[id];
+                    changed = true;
+                }
+            } catch (error) {
+                this.reportSyncError(error);
+            } finally {
+                writeSnapshot(name, snapshot);
+                if (changed) this[config.persist]();
+                if (this.syncStatus === 'syncing') this.syncStatus = 'idle';
+            }
+
+            // Orders and waste change stock on the server; pull the new levels
+            if (stockChanged) this.queueRefresh('inventory');
+        },
+
+        async refreshSettings() {
+            const result = await api.request('GET', '/settings/restaurant');
+            this.settings = { ...this.settings, ...M.settings.fromApi(result.data) };
+            writeSnapshot('settings', M.settings.toApi(this.settings));
+            this.saveSettings();
+        },
+
+        queueSettingsSync() {
+            if (!this.isAuthenticated || !readSnapshot('settings')) return Promise.resolve();
+            return this.enqueue('settings', async () => {
+                const payload = M.settings.toApi(this.settings);
+                if (same(payload, readSnapshot('settings'))) return;
+                try {
+                    await api.request('POST', '/settings/restaurant', payload);
+                    writeSnapshot('settings', payload);
+                } catch (error) {
+                    this.reportSyncError(error, 'Could not save settings');
+                }
+            });
+        },
+
+        // Push pending changes for everything, e.g. when the connection returns
+        async syncAll() {
+            await this.queueSettingsSync();
+            for (const name of Object.keys(SYNCED)) {
+                await this.queueSync(name);
+            }
         },
         
         // Load recipes from localStorage
@@ -740,13 +1064,6 @@ document.addEventListener('alpine:init', () => {
             ];
         },
         
-        // Save recipes to localStorage
-        saveRecipes() {
-            localStorage.setItem('restaurant_recipes', JSON.stringify(this.recipes));
-            // Dispatch event to sync across tabs
-            window.dispatchEvent(new Event('storage'));
-        },
-        
         // Load orders from localStorage
         loadOrders() {
             const savedOrders = localStorage.getItem('restaurant_orders');
@@ -762,6 +1079,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_orders',
                     newValue: JSON.stringify(this.orders)
                 }));
+                this.queueSync('orders');
             } catch (error) {
                 console.error('Error saving orders:', error);
                 alert('Error saving orders. Please check your browser storage.');
@@ -787,6 +1105,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_settings',
                     newValue: JSON.stringify(this.settings)
                 }));
+                this.queueSettingsSync();
             } catch (error) {
                 console.error('Error saving settings:', error);
                 alert('Error saving settings. Please check your browser storage.');
@@ -813,6 +1132,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_tables',
                     newValue: JSON.stringify(this.tables)
                 }));
+                this.queueSync('tables');
             } catch (error) {
                 console.error('Error saving tables:', error);
                 alert('Error saving tables. Please check your browser storage.');
@@ -846,6 +1166,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_inventory',
                     newValue: JSON.stringify(this.inventory)
                 }));
+                this.queueSync('inventory');
             } catch (error) {
                 console.error('Error saving inventory:', error);
                 alert('Error saving inventory. Please check your browser storage.');
@@ -860,6 +1181,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_suppliers',
                     newValue: JSON.stringify(this.suppliers)
                 }));
+                this.queueSync('suppliers');
             } catch (error) {
                 console.error('Error saving suppliers:', error);
                 alert('Error saving suppliers. Please check your browser storage.');
@@ -874,6 +1196,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_purchases',
                     newValue: JSON.stringify(this.purchases)
                 }));
+                this.queueSync('purchases');
             } catch (error) {
                 console.error('Error saving purchases:', error);
                 alert('Error saving purchases. Please check your browser storage.');
@@ -881,13 +1204,14 @@ document.addEventListener('alpine:init', () => {
         },
         
         // Save waste to localStorage
-        saveWaste() {
+        persistWaste() {
             try {
                 localStorage.setItem('restaurant_waste', JSON.stringify(this.waste));
                 window.dispatchEvent(new StorageEvent('storage', {
                     key: 'restaurant_waste',
                     newValue: JSON.stringify(this.waste)
                 }));
+                this.queueSync('waste');
             } catch (error) {
                 console.error('Error saving waste:', error);
                 alert('Error saving waste. Please check your browser storage.');
@@ -1240,8 +1564,11 @@ document.addEventListener('alpine:init', () => {
             this.orders.push(newOrder);
             this.saveOrders();
             
-            // Automatically deduct stock from inventory
-            this.deductStockFromOrder(newOrder);
+            // Deduct stock locally only when not connected; the server deducts it
+            // when the order is created and the new levels are pulled afterwards
+            if (!this.isAuthenticated) {
+                this.deductStockFromOrder(newOrder);
+            }
             
             // Update table status if dine-in
             if (this.orderType === 'dine-in' && this.currentOrder.tableNumber) {
@@ -1474,10 +1801,8 @@ document.addEventListener('alpine:init', () => {
                 
                 this.kdsRefreshTimer = setInterval(() => {
                     if (this.currentTab === 'kds') {
-                        // Force Alpine.js to re-render
-                        this.$nextTick(() => {
-                            // This will trigger a re-render
-                        });
+                        // Pull orders placed on other devices
+                        this.queueRefresh('orders').catch(error => this.reportSyncError(error));
                     }
                 }, this.kdsRefreshInterval * 1000);
             }
@@ -1750,8 +2075,13 @@ document.addEventListener('alpine:init', () => {
         },
         
         closeTable(tableNumber) {
-            // Complete all orders for this table
-            this.orders = this.orders.filter(order => order.tableNumber !== tableNumber);
+            // Complete all open orders for this table (keeps them for revenue reports)
+            this.orders.forEach(order => {
+                if (order.tableNumber === tableNumber && order.status !== 'completed') {
+                    order.status = 'completed';
+                    order.completedTime = Date.now();
+                }
+            });
             this.saveOrders();
             
             // Mark table as available
@@ -2118,6 +2448,10 @@ document.addEventListener('alpine:init', () => {
         },
         
         importBackup(event) {
+            if (this.isAuthenticated) {
+                alert('Restoring a backup is not available while connected to the server, because it would overwrite shared data.');
+                return;
+            }
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -2224,6 +2558,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_chefs',
                     newValue: JSON.stringify(this.chefs)
                 }));
+                this.queueSync('chefs');
             } catch (error) {
                 console.error('Error saving chefs:', error);
                 alert('Error saving chefs. Please check your browser storage.');
@@ -2237,6 +2572,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_stations',
                     newValue: JSON.stringify(this.stations)
                 }));
+                this.queueSync('stations');
             } catch (error) {
                 console.error('Error saving stations:', error);
                 alert('Error saving stations. Please check your browser storage.');
@@ -2487,6 +2823,7 @@ document.addEventListener('alpine:init', () => {
                     key: 'restaurant_recipes',
                     newValue: JSON.stringify(this.recipes)
                 }));
+                this.queueSync('recipes');
             } catch (error) {
                 console.error('Error saving recipes:', error);
                 alert('Error saving recipes. Please check your browser storage.');
@@ -3069,7 +3406,7 @@ document.addEventListener('alpine:init', () => {
             
             // Clean up recipes (remove invalid ones)
             this.recipes = this.recipes.filter(recipe => 
-                recipe && recipe.id && recipe.name && recipe.price > 0
+                recipe && recipe.id && recipe.name && recipe.price >= 0
             );
             
             // Clean up tables (remove invalid ones)
@@ -3117,6 +3454,10 @@ document.addEventListener('alpine:init', () => {
         
         // Import all data with validation
         importAllData(jsonData) {
+            if (this.isAuthenticated) {
+                alert('Restoring a backup is not available while connected to the server, because it would overwrite shared data.');
+                return false;
+            }
             try {
                 const data = JSON.parse(jsonData);
                 
@@ -3208,6 +3549,16 @@ document.addEventListener('alpine:init', () => {
         
         // Clear all data with confirmation
         clearAllData() {
+            if (this.isAuthenticated) {
+                if (confirm('Clear the data cached in this browser and reload it from the server? Server data is not affected.')) {
+                    Object.keys(SYNCED).forEach(name => {
+                        localStorage.removeItem(`restaurant_${name}`);
+                        writeSnapshot(name, null);
+                    });
+                    this.bootstrapFromApi();
+                }
+                return;
+            }
             if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
                 try {
                     // Clear all localStorage
@@ -3400,6 +3751,7 @@ document.addEventListener('alpine:init', () => {
                 }
                 
                 item.lastUpdated = Date.now();
+                pendingStockReasons[item.id] = reason;
                 
                 // Log the transaction
                 this.logStockTransaction(item, oldStock, item.currentStock, operation, reason);
@@ -3496,7 +3848,30 @@ document.addEventListener('alpine:init', () => {
             this.resetPurchaseForm();
         },
         
-        receivePurchase(purchaseId) {
+        async receivePurchase(purchaseId) {
+            if (this.isAuthenticated) {
+                await this.queueSync('purchases');
+                const id = serverIds[purchaseId] ?? purchaseId;
+                const synced = this.purchases.find(p => p.id === id);
+                const items = (synced?.items || []).filter(item => item.purchaseItemId);
+                if (!synced || !items.length) {
+                    alert('This purchase has not been saved to the server yet. Try again in a moment.');
+                    return;
+                }
+                try {
+                    await window.RestaurantApi.request('POST', `/purchases/${synced.id}/receive-items`, {
+                        items: items.map(item => ({ purchase_item_id: item.purchaseItemId, received_quantity: item.quantity })),
+                        received_by: this.currentUser?.name || null,
+                    });
+                } catch (error) {
+                    this.reportSyncError(error, 'Could not receive purchase');
+                    return;
+                }
+                this.queueRefresh('purchases');
+                this.queueRefresh('inventory');
+                return;
+            }
+
             const purchase = this.purchases.find(p => p.id === purchaseId);
             if (purchase) {
                 purchase.status = 'received';
@@ -3609,15 +3984,17 @@ document.addEventListener('alpine:init', () => {
         saveWaste() {
             const newWaste = {
                 ...this.wasteForm,
+                inventoryId: this.wasteForm.item,
                 id: Date.now(),
                 createdAt: Date.now()
             };
             
             this.waste.push(newWaste);
             
-            // Deduct from inventory
-            const inventoryItem = this.inventory.find(item => item.id === this.wasteForm.item);
-            if (inventoryItem) {
+            // Deduct from inventory locally when not connected; otherwise the
+            // server deducts it when the waste record is created
+            const inventoryItem = this.inventory.find(item => String(item.id) === String(this.wasteForm.item));
+            if (inventoryItem && !this.isAuthenticated) {
                 this.updateStock(
                     inventoryItem.id,
                     this.wasteForm.quantity,
@@ -3626,7 +4003,7 @@ document.addEventListener('alpine:init', () => {
                 );
             }
             
-            this.saveWaste();
+            this.persistWaste();
             this.showWasteForm = false;
             this.resetWasteForm();
         },
@@ -3717,6 +4094,10 @@ document.addEventListener('alpine:init', () => {
         },
         
         importInventoryData(file) {
+            if (this.isAuthenticated) {
+                alert('Restoring a backup is not available while connected to the server, because it would overwrite shared data.');
+                return;
+            }
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
@@ -3730,7 +4111,7 @@ document.addEventListener('alpine:init', () => {
                     this.saveInventory();
                     this.saveSuppliers();
                     this.savePurchases();
-                    this.saveWaste();
+                    this.persistWaste();
                     
                     alert('Inventory data imported successfully!');
                 } catch (error) {

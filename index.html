@@ -19,11 +19,43 @@
             }
         }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>[x-cloak] { display: none !important; }</style>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <script>
+        // Where the Laravel API is served. Change this when deploying.
+        window.RESTAURANT_API_BASE = 'http://localhost:8000/api';
+    </script>
+    <script src="api-client.js"></script>
     <script src="app.js"></script>
    
 </head>
 <body x-data="app()" x-init="initApp()" :dir="direction" :class="{'rtl': direction === 'rtl'}">
+    <!-- Login -->
+    <div x-show="!isAuthenticated" x-cloak class="fixed inset-0 z-50 bg-gray-100 flex items-center justify-center p-4">
+        <form @submit.prevent="login()" class="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 space-y-4">
+            <h1 class="text-xl font-bold text-primary flex items-center gap-2">
+                <i class="fas fa-utensils"></i>
+                <span x-text="translations.appTitle"></span>
+            </h1>
+            <p class="text-sm text-gray-600">Sign in to connect to the restaurant server.</p>
+            <div>
+                <label for="login-email" class="block text-sm font-medium mb-1">Email</label>
+                <input id="login-email" type="email" x-model="loginForm.email" required autocomplete="username"
+                       class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label for="login-password" class="block text-sm font-medium mb-1">Password</label>
+                <input id="login-password" type="password" x-model="loginForm.password" required autocomplete="current-password"
+                       class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <p x-show="loginForm.error" x-text="loginForm.error" class="text-sm text-red-600" role="alert"></p>
+            <button type="submit" :disabled="loginForm.loading"
+                    class="w-full bg-primary text-white py-2 rounded-lg font-bold hover:bg-teal-700 transition disabled:opacity-50">
+                <span x-text="loginForm.loading ? 'Signing in…' : 'Sign in'"></span>
+            </button>
+        </form>
+    </div>
+
     <!-- App Header -->
     <header class="bg-primary text-white shadow-md">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -97,10 +129,25 @@
                             class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
                         <i class="fas fa-cog"></i>
                     </button>
+                    <button @click="logout()" :title="currentUser ? 'Sign out ' + currentUser.name : 'Sign out'"
+                            aria-label="Sign out"
+                            class="px-3 py-1 rounded-md hover:bg-white hover:text-primary transition">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </div>
         </div>
     </header>
+
+    <!-- Sync status -->
+    <div x-show="syncError" x-cloak role="status"
+         class="container mx-auto px-4 mt-3">
+        <div class="flex items-start justify-between gap-3 rounded-lg px-4 py-2 text-sm"
+             :class="syncStatus === 'offline' ? 'bg-yellow-100 text-yellow-900' : 'bg-red-100 text-red-900'">
+            <span x-text="syncError"></span>
+            <button @click="dismissSyncError()" aria-label="Dismiss" class="shrink-0"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
 
     <main class="container mx-auto px-4 py-6">
         <!-- POS System -->
