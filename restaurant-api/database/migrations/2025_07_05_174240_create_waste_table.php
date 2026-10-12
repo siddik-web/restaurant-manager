@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('waste', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('inventory_id')->constrained()->onDelete('cascade');
+            $table->foreignId('inventory_id')->constrained('inventory')->onDelete('cascade');
             $table->decimal('quantity', 10, 4);
             $table->decimal('unit_cost', 10, 2);
             $table->decimal('total_cost', 12, 2);
