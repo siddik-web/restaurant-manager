@@ -1,6 +1,6 @@
-# Restaurant POS System - Modular Architecture
+# Restaurant POS System
 
-A modern, modular restaurant Point of Sale (POS) system built with Alpine.js and Laravel API integration. The system is designed with a clean, maintainable architecture that separates concerns into distinct modules, including a comprehensive **Inventory Management System**.
+A restaurant Point of Sale (POS) system with an Alpine.js frontend and a Laravel API backend, including a comprehensive **Inventory Management System**.
 
 ![image](https://github.com/user-attachments/assets/7eceeb3d-84cd-4f5a-80f3-5457bd6641a9)
 ![image](https://github.com/user-attachments/assets/d41b5001-a3c3-419c-bab4-7024e0435924)
@@ -11,36 +11,24 @@ A modern, modular restaurant Point of Sale (POS) system built with Alpine.js and
 
 ## 🏗️ Architecture Overview
 
-The system is built using a modular approach with the following structure:
+```
+restaurant-manager/
+├── index.html          # UI (Alpine.js + Tailwind), includes the login screen
+├── app.js              # Alpine component: POS, KDS, recipes, tables, inventory, reports
+├── api-client.js       # API requests, auth token handling, snake_case <-> camelCase mapping
+└── restaurant-api/     # Laravel 12 API (Sanctum token auth)
+    ├── app/Http/Controllers/Api/
+    ├── app/Models/
+    ├── database/migrations/ and seeders/
+    └── tests/Feature/
+```
 
-```
-pos/
-├── js/                          # JavaScript modules
-│   ├── api.js                   # Centralized API client
-│   ├── state.js                 # Alpine.js state management
-│   ├── recipes.js               # Recipe management module
-│   ├── orders.js                # Order management module
-│   ├── tables.js                # Table management module
-│   ├── chefs-stations.js        # Chef and station management
-│   ├── inventory.js             # Inventory management module
-│   ├── settings.js              # Settings management module
-│   └── app.js                   # Main Alpine.js component
-├── restaurant-api/              # Laravel API backend
-│   ├── app/Models/              # Eloquent models
-│   │   ├── Inventory.php        # Inventory management
-│   │   ├── Supplier.php         # Supplier management
-│   │   ├── Purchase.php         # Purchase orders
-│   │   ├── Waste.php            # Waste tracking
-│   │   └── StockTransaction.php # Stock movement tracking
-│   ├── app/Http/Controllers/Api/ # API controllers
-│   │   ├── InventoryController.php
-│   │   ├── SupplierController.php
-│   │   ├── PurchaseController.php
-│   │   └── WasteController.php
-│   └── database/migrations/     # Database schema
-├── index.html                   # Main HTML file
-└── README.md                    # This file
-```
+The frontend keeps working copies of the data in the browser and syncs them with the API:
+
+- After signing in, every collection (recipes, orders, tables, chefs, stations, inventory, suppliers, purchases, waste) and the restaurant settings are loaded from the server.
+- Whenever the UI saves a collection, `app.js` compares it with the last version the server confirmed and sends only the creates, updates and deletes.
+- Stock is owned by the server: placing an order, recording waste and receiving a purchase update stock on the server, and the UI then reloads inventory.
+- If the server can't be reached, changes stay in `localStorage` and are pushed when the connection returns, even across page reloads.
 
 ## 🚀 Features
 
@@ -72,129 +60,45 @@ pos/
 - **Modular Architecture**: Clean, maintainable code structure
 - **Data Export/Import**: Backup and restore functionality
 
-## 📦 Module Structure
-
-### 1. API Client (`js/api.js`)
-Centralized API handler for all CRUD operations:
-- Online/offline detection
-- Request queueing for offline operations
-- Automatic sync when back online
-- Error handling and retry logic
-
-### 2. State Management (`js/state.js`)
-Alpine.js state initialization and global app state:
-- Data loading from API/localStorage
-- Cross-tab synchronization
-- Language management
-- System health monitoring
-
-### 3. Recipe Management (`js/recipes.js`)
-Complete recipe management system:
-- CRUD operations for recipes
-- Advanced filtering and sorting
-- Category management
-- Ingredient scaling
-- Recipe duplication and activation
-
-### 4. Order Management (`js/orders.js`)
-Comprehensive order processing:
-- POS functionality
-- KDS integration
-- Order status tracking
-- Receipt generation
-- Kitchen analytics
-- **Automatic inventory deduction**
-
-### 5. Table Management (`js/tables.js`)
-Table and reservation system:
-- Table CRUD operations
-- Reservation management
-- Status tracking
-- Analytics and reporting
-- Capacity management
-
-### 6. Chef & Station Management (`js/chefs-stations.js`)
-Kitchen staff and station management:
-- Chef and station CRUD
-- Order assignment
-- Performance tracking
-- Workload management
-- Auto-assignment logic
-
-### 7. Inventory Management (`js/inventory.js`)
-Complete inventory management system:
-- **Inventory CRUD operations** with real-time stock tracking
-- **Stock adjustments** (add, subtract, set) with transaction logging
-- **Supplier management** with performance metrics
-- **Purchase order management** with receiving workflow
-- **Waste tracking** with categorization and reporting
-- **Stock alerts** for low stock, out of stock, and expiring items
-- **Analytics and reporting** for inventory value and movement
-- **Export/Import functionality** for data backup
-- **Automatic stock deduction** when orders are placed
-- **Transaction logging** for complete audit trail
-
-### 8. Settings Management (`js/settings.js`)
-System configuration and preferences:
-- Restaurant information
-- Tax and delivery settings
-- Receipt customization
-- Print settings
-- Backup and restore
-
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Modern web browser with ES6 module support
-- Laravel API backend (see `restaurant-api/` directory)
-- Web server (Apache, Nginx, or built-in PHP server)
-- PHP 8.0+ with required extensions
-- Composer for PHP dependencies
+- PHP 8.2+ and Composer
+- A modern browser
+- Any static file server for the frontend (the examples use Python)
 
 ### Quick Start
-1. Clone the repository
-2. Set up the Laravel API backend:
+1. Set up and start the API (http://localhost:8000):
    ```bash
    cd restaurant-api
    composer install
    cp .env.example .env
    php artisan key:generate
+   touch database/database.sqlite   # default DB is SQLite
    php artisan migrate --seed
    php artisan serve
    ```
-3. Serve the frontend:
+2. In another terminal, serve the frontend from the repository root (http://localhost:8080):
    ```bash
-   # Using PHP built-in server
-   php -S localhost:8000
-   
-   # Or using any web server
-   # Point to the pos/ directory
+   python3 -m http.server 8080
    ```
-4. Open `http://localhost:8000` in your browser
+3. Open http://localhost:8080 and sign in with the seeded admin account:
+   `admin@example.com` / `password`.
 
-### Database Setup
-The system includes comprehensive database migrations and seeders:
+Change `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `restaurant-api/.env` before seeding anything other than a local database.
 
+### Running the API tests
 ```bash
-# Run all migrations
-php artisan migrate
-
-# Seed with sample data
-php artisan db:seed
-
-# Or run specific seeders
-php artisan db:seed --class=InventorySeeder
-php artisan db:seed --class=SupplierSeeder
+cd restaurant-api
+php artisan test
 ```
 
 ## 🔧 Configuration
 
 ### API Configuration
-The system automatically detects the API endpoint. Update the API base URL in `js/api.js` if needed:
-
-```javascript
-const API_BASE = '/api'; // Adjust if your API is on a different base path
-```
+- **API address**: `index.html` sets `window.RESTAURANT_API_BASE` (default `http://localhost:8000/api`). Change it when the API runs elsewhere.
+- **CORS**: the API only accepts browser requests from the origins in `CORS_ALLOWED_ORIGINS` in `restaurant-api/.env` (default `http://localhost:8080,http://127.0.0.1:8080`). Add the frontend's origin there.
+- **Authentication**: all endpoints except `POST /api/login` require a Sanctum bearer token. The frontend stores the token in `localStorage` and returns to the login screen when it is rejected.
 
 ### Inventory Configuration
 Configure inventory settings in the Laravel backend:
@@ -224,23 +128,20 @@ this.changeLanguage('en'); // English
 
 ## 📊 Data Flow
 
-### Online Mode
-1. Data is fetched from the Laravel API
-2. Changes are immediately synced to the server
-3. Real-time updates via polling (WebSocket support planned)
-4. **Inventory changes trigger automatic stock updates**
+### Online
+1. Signing in calls `POST /api/login` and stores the returned token.
+2. All data is loaded from the API; `localStorage` is only a cache.
+3. Changes are sent to the API as soon as they are saved in the UI.
+4. The kitchen display polls the API for orders placed on other devices (every 30 seconds by default).
 
-### Offline Mode
-1. Data is served from localStorage
-2. Changes are queued for later sync
-3. Automatic sync when connection is restored
-4. **Inventory operations cached for offline use**
+### Offline
+1. A yellow banner shows that the server is unreachable.
+2. Changes are kept in `localStorage`, including across reloads.
+3. When the browser comes back online, pending changes are pushed and data is reloaded from the server.
 
-### Cross-Tab Sync
-- Uses localStorage events for real-time synchronization
-- All tabs stay in sync automatically
-- No manual refresh required
-- **Inventory alerts shared across all tabs**
+### While connected
+- **Import / restore backup** is disabled, since it would overwrite shared server data.
+- **Clear all data** only clears this browser's cache and reloads from the server.
 
 ## 🎯 Usage Examples
 
@@ -351,12 +252,11 @@ await inventory.updateStock(1, 2, 'subtract', 'Waste - expired');
 
 ## 🔒 Security Features
 
-- API authentication via Laravel Sanctum
-- CSRF protection
-- Input validation and sanitization
-- Secure localStorage usage
-- Error handling and logging
-- **Inventory transaction audit trail**
+- Token authentication via Laravel Sanctum on every API route except login
+- Login rate limiting (6 attempts per minute)
+- CORS restricted to configured origins
+- Server-side input validation
+- Inventory transaction audit trail
 
 ## 📱 Browser Support
 
@@ -378,6 +278,13 @@ await inventory.updateStock(1, 2, 'subtract', 'Waste - expired');
 ## 🔄 API Endpoints
 
 The system integrates with the following Laravel API endpoints:
+
+### Auth
+- `POST /api/login` - Exchange email/password for a bearer token
+- `POST /api/logout` - Revoke the current token
+- `GET /api/user` - Get the signed-in user
+
+All other endpoints require `Authorization: Bearer <token>`.
 
 ### Core Endpoints
 - `GET /api/recipes` - Get all recipes
@@ -466,29 +373,10 @@ The system provides comprehensive inventory reporting:
 
 ### Common Issues
 
-1. **Module loading errors**: Ensure your web server supports ES6 modules
-2. **API connection issues**: Check the API base URL and server status
-3. **Data not syncing**: Verify localStorage is enabled and not full
-4. **Performance issues**: Check browser console for errors
-5. **Inventory sync issues**: Check database connections and API endpoints
-
-### Debug Mode
-Enable debug mode by adding to browser console:
-```javascript
-localStorage.setItem('debug_mode', 'true');
-```
-
-### Inventory Debugging
-```javascript
-// Check inventory status
-console.log(window.inventory.inventory);
-
-// Check stock transactions
-console.log(await window.inventory.getStockTransactions());
-
-// Check alerts
-console.log(await window.inventory.getLowStockItems());
-```
+1. **"Cannot reach the server" on login**: check the API is running and `window.RESTAURANT_API_BASE` in `index.html` points to it.
+2. **CORS errors in the browser console**: add the frontend's origin to `CORS_ALLOWED_ORIGINS` and restart the API.
+3. **Red banner after saving**: the API rejected the change; the message shows the validation error.
+4. **Stuck on old data**: use *Clear all data* in the backup dialog to reload from the server.
 
 ## 🤝 Contributing
 
