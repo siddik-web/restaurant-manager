@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Recipe;
 use App\Models\Table;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class OrderCreationTest extends TestCase
@@ -12,6 +14,13 @@ class OrderCreationTest extends TestCase
     use RefreshDatabase;
 
     protected bool $seed = true;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Sanctum::actingAs(User::factory()->create());
+    }
 
     public function test_takeaway_order_can_be_created_without_table_number(): void
     {

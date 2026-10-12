@@ -6,8 +6,10 @@ use App\Models\Inventory;
 use App\Models\Purchase;
 use App\Models\StockTransaction;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Models\Waste;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class InventoryReportsTest extends TestCase
@@ -15,6 +17,13 @@ class InventoryReportsTest extends TestCase
     use RefreshDatabase;
 
     protected bool $seed = true;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Sanctum::actingAs(User::factory()->create());
+    }
 
     private function createWaste(array $attributes = []): Waste
     {
