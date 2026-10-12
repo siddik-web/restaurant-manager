@@ -8,6 +8,11 @@ use App\Models\Recipe;
 use App\Models\Table;
 use App\Models\Chef;
 use App\Models\Station;
+use App\Models\Inventory;
+use App\Models\Purchase;
+use App\Models\StockTransaction;
+use App\Models\Supplier;
+use App\Models\Waste;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -454,5 +459,235 @@ class ReportController extends Controller
                 'total_records' => count($data),
             ],
         ]);
+    }
+
+    /**
+     * Get inventory stock levels report
+     */
+    public function inventoryStock(Request $request): JsonResponse
+    {
+        $query = Inventory::with('supplier:id,name')->active();
+
+        if ($request->filled('category')) {
+            $query->byCategory($request->category);
+        }
+
+        $items = $query->orderBy('category')->orderBy('name')->get();
+
+        $data = $items->map(fn ($item) => [
+            'id' => $item->id,
+            'name' => $item->name,
+            'sku' => $item->sku,
+            'category' => $item->category,
+            'unit' => $item->unit,
+            'current_stock' => $item->current_stock,
+            'min_stock' => $item->min_stock,
+            'max_stock' => $item->max_stock,
+            'stock_status' => $item->stock_status,
+            'stock_value' => $item->stock_value,
+            'expiry_date' => $item->expiry_date?->toDateString(),
+            'supplier' => $item->supplier?->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_items' => $items->count(),
+                'low_stock_count' => $items->filter(fn ($item) => $item->isLowStock() && !$item->isOutOfStock())->count(),
+                'out_of_stock_count' => $items->filter(fn ($item) => $item->isOutOfStock())->count(),
+                'expiring_soon_count' => (clone $query)->expiringSoon()->count(),
+                'items' => $data->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get inventory value report
+     */
+    public function inventoryValue(Request $request): JsonResponse
+    {
+        $byCategory = Inventory::active()
+            ->selectRaw('category, COUNT(*) as item_count, SUM(current_stock * cost_per_unit) as total_value')
+            ->groupBy('category')
+            ->orderByDesc('total_value')
+            ->get();
+
+        $totalValue = $byCategory->sum('total_value');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_value' => $totalValue,
+                'total_items' => $byCategory->sum('item_count'),
+                'by_category' => $byCategory->map(fn ($row) => [
+                    'category' => $row->category,
+                    'item_count' => (int) $row->item_count,
+                    'total_value' => (float) $row->total_value,
+                    'percentage' => $totalValue > 0 ? ($row->total_value / $totalValue) * 100 : 0,
+                ]),
+            ],
+        ]);
+    }
+
+    /**
+     * Get inventory movement report
+     */
+    public function inventoryMovement(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->dateRange($request);
+
+        $query = StockTransaction::whereDate('transaction_date', '>=', $startDate)
+            ->whereDate('transaction_date', '<=', $endDate);
+
+        if ($request->filled('inventory_id')) {
+            $query->byInventory($request->inventory_id);
+        }
+
+        $byType = (clone $query)
+            ->selectRaw('transaction_type, COUNT(*) as count, SUM(quantity) as total_quantity, SUM(total_value) as total_value')
+            ->groupBy('transaction_type')
+            ->get();
+
+        $mostActive = (clone $query)
+            ->with('inventory:id,name,unit')
+            ->selectRaw('inventory_id, COUNT(*) as transaction_count, SUM(ABS(quantity)) as total_quantity')
+            ->groupBy('inventory_id')
+            ->orderByDesc('transaction_count')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_transactions' => $byType->sum('count'),
+                'by_type' => $byType,
+                'most_active_items' => $mostActive,
+            ],
+        ]);
+    }
+
+    /**
+     * Get purchase analysis report
+     */
+    public function purchaseAnalysis(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->dateRange($request);
+
+        $purchases = Purchase::with('supplier:id,name')
+            ->whereDate('order_date', '>=', $startDate)
+            ->whereDate('order_date', '<=', $endDate)
+            ->get();
+
+        $active = $purchases->where('status', '!=', 'cancelled');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_purchases' => $purchases->count(),
+                'total_spent' => $active->sum('total_amount'),
+                'average_purchase' => $active->count() > 0 ? $active->sum('total_amount') / $active->count() : 0,
+                'by_status' => $purchases->countBy('status'),
+                'by_payment_status' => $purchases->countBy('payment_status'),
+                'by_supplier' => $active->groupBy('supplier_id')->map(fn ($group) => [
+                    'supplier_id' => $group->first()->supplier_id,
+                    'supplier' => $group->first()->supplier?->name,
+                    'purchase_count' => $group->count(),
+                    'total_spent' => $group->sum('total_amount'),
+                ])->sortByDesc('total_spent')->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get waste analysis report
+     */
+    public function wasteAnalysis(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->dateRange($request);
+
+        $waste = Waste::with('inventory:id,name,unit')
+            ->whereDate('waste_date', '>=', $startDate)
+            ->whereDate('waste_date', '<=', $endDate)
+            ->get();
+
+        $summarize = fn ($group) => [
+            'count' => $group->count(),
+            'total_quantity' => $group->sum('quantity'),
+            'total_cost' => $group->sum('total_cost'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_records' => $waste->count(),
+                'total_cost' => $waste->sum('total_cost'),
+                'by_reason' => $waste->groupBy('reason')->map($summarize),
+                'by_category' => $waste->groupBy(fn ($w) => $w->category ?? 'uncategorized')->map($summarize),
+                'top_items' => $waste->groupBy('inventory_id')->map(fn ($group) => [
+                    'inventory_id' => $group->first()->inventory_id,
+                    'name' => $group->first()->inventory?->name,
+                    'unit' => $group->first()->inventory?->unit,
+                ] + $summarize($group))->sortByDesc('total_cost')->take(10)->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get supplier performance report
+     */
+    public function supplierPerformance(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->dateRange($request);
+
+        $suppliers = Supplier::with(['purchases' => fn ($q) => $q->whereDate('order_date', '>=', $startDate)
+            ->whereDate('order_date', '<=', $endDate)])
+            ->orderBy('name')
+            ->get();
+
+        $data = $suppliers->map(function ($supplier) {
+            $purchases = $supplier->purchases;
+            $delivered = $purchases->where('status', 'delivered');
+            $onTime = $delivered->filter(fn ($p) => $p->expected_delivery && $p->delivery_date
+                && $p->delivery_date->lte($p->expected_delivery));
+            $withDates = $delivered->filter(fn ($p) => $p->expected_delivery && $p->delivery_date);
+
+            return [
+                'id' => $supplier->id,
+                'name' => $supplier->name,
+                'is_active' => $supplier->is_active,
+                'total_purchases' => $purchases->count(),
+                'total_spent' => $purchases->where('status', '!=', 'cancelled')->sum('total_amount'),
+                'delivered_count' => $delivered->count(),
+                'cancelled_count' => $purchases->where('status', 'cancelled')->count(),
+                'on_time_rate' => $withDates->count() > 0 ? ($onTime->count() / $withDates->count()) * 100 : null,
+                'average_rating' => $purchases->whereNotNull('rating')->avg('rating') ?? $supplier->rating,
+            ];
+        })->sortByDesc('total_spent')->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'suppliers' => $data,
+            ],
+        ]);
+    }
+
+    /**
+     * Resolve start/end dates from the request, defaulting to the last 30 days
+     */
+    private function dateRange(Request $request): array
+    {
+        return [
+            $request->get('start_date', now()->subDays(30)->toDateString()),
+            $request->get('end_date', now()->toDateString()),
+        ];
     }
 }

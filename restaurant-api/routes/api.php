@@ -30,10 +30,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Recipe Routes
+Route::get('recipes/categories', [RecipeController::class, 'categories']);
 Route::apiResource('recipes', RecipeController::class);
 Route::patch('recipes/{recipe}/toggle-active', [RecipeController::class, 'toggleActive']);
 Route::post('recipes/{recipe}/duplicate', [RecipeController::class, 'duplicate']);
-Route::get('recipes/categories', [RecipeController::class, 'categories']);
 
 // Order Routes
 Route::apiResource('orders', OrderController::class);
@@ -43,65 +43,65 @@ Route::patch('orders/{order}/urgent', [OrderController::class, 'markUrgent']);
 Route::patch('orders/{order}/complete', [OrderController::class, 'complete']);
 
 // Table Routes
+Route::get('tables/available', [TableController::class, 'getAvailable']);
+Route::get('tables/locations', [TableController::class, 'getLocations']);
 Route::apiResource('tables', TableController::class);
 Route::post('tables/{table}/reservation', [TableController::class, 'makeReservation']);
 Route::patch('tables/{table}/cancel-reservation', [TableController::class, 'cancelReservation']);
 Route::patch('tables/{table}/close', [TableController::class, 'closeTable']);
 Route::get('tables/{table}/orders', [TableController::class, 'getOrders']);
 Route::get('tables/{table}/stats', [TableController::class, 'getStats']);
-Route::get('tables/available', [TableController::class, 'getAvailable']);
-Route::get('tables/locations', [TableController::class, 'getLocations']);
 
 // Chef Routes
+Route::get('chefs/active', [ChefController::class, 'getActive']);
+Route::get('chefs/specialties', [ChefController::class, 'getSpecialties']);
 Route::apiResource('chefs', ChefController::class);
 Route::patch('chefs/{chef}/toggle-active', [ChefController::class, 'toggleActive']);
 Route::get('chefs/{chef}/stats', [ChefController::class, 'getStats']);
-Route::get('chefs/active', [ChefController::class, 'getActive']);
-Route::get('chefs/specialties', [ChefController::class, 'getSpecialties']);
 
 // Station Routes
+Route::get('stations/active', [StationController::class, 'getActive']);
 Route::apiResource('stations', StationController::class);
 Route::patch('stations/{station}/toggle-active', [StationController::class, 'toggleActive']);
 Route::get('stations/{station}/stats', [StationController::class, 'getStats']);
-Route::get('stations/active', [StationController::class, 'getActive']);
 
 // Setting Routes
-Route::apiResource('settings', SettingController::class);
-Route::get('settings/value/{key}', [SettingController::class, 'getValue']);
-Route::post('settings/value/{key}', [SettingController::class, 'setValue']);
 Route::get('settings/restaurant', [SettingController::class, 'getRestaurantSettings']);
 Route::post('settings/restaurant', [SettingController::class, 'updateRestaurantSettings']);
 Route::get('settings/types', [SettingController::class, 'getTypes']);
+Route::apiResource('settings', SettingController::class);
+Route::get('settings/value/{key}', [SettingController::class, 'getValue']);
+Route::post('settings/value/{key}', [SettingController::class, 'setValue']);
 
 // Inventory Routes
-Route::apiResource('inventory', InventoryController::class);
-Route::patch('inventory/{inventory}/adjust-stock', [InventoryController::class, 'adjustStock']);
 Route::get('inventory/categories', [InventoryController::class, 'categories']);
 Route::get('inventory/alerts/low-stock', [InventoryController::class, 'lowStockAlerts']);
 Route::get('inventory/alerts/expiring', [InventoryController::class, 'expiringItems']);
-Route::get('inventory/{inventory}/transactions', [InventoryController::class, 'transactions']);
 Route::post('inventory/bulk-update', [InventoryController::class, 'bulkUpdate']);
+Route::apiResource('inventory', InventoryController::class);
+Route::patch('inventory/{inventory}/adjust-stock', [InventoryController::class, 'adjustStock']);
+Route::get('inventory/{inventory}/transactions', [InventoryController::class, 'transactions']);
 
 // Supplier Routes
+Route::get('suppliers/active', [SupplierController::class, 'getActive']);
+Route::get('suppliers/performance', [SupplierController::class, 'getByPerformance']);
 Route::apiResource('suppliers', SupplierController::class);
 Route::patch('suppliers/{supplier}/toggle-active', [SupplierController::class, 'toggleActive']);
 Route::get('suppliers/{supplier}/stats', [SupplierController::class, 'getStats']);
-Route::get('suppliers/active', [SupplierController::class, 'getActive']);
-Route::get('suppliers/performance', [SupplierController::class, 'getByPerformance']);
 
 // Purchase Routes
+Route::get('purchases/alerts/overdue', [PurchaseController::class, 'getOverdue']);
+Route::get('purchases/stats', [PurchaseController::class, 'getStats']);
 Route::apiResource('purchases', PurchaseController::class);
 Route::patch('purchases/{purchase}/status', [PurchaseController::class, 'updateStatus']);
 Route::post('purchases/{purchase}/receive-items', [PurchaseController::class, 'receiveItems']);
-Route::get('purchases/alerts/overdue', [PurchaseController::class, 'getOverdue']);
-Route::get('purchases/stats', [PurchaseController::class, 'getStats']);
 
 // Waste Routes
-Route::apiResource('waste', WasteController::class);
 Route::get('waste/reasons', [WasteController::class, 'reasons']);
 Route::get('waste/categories', [WasteController::class, 'categories']);
 Route::get('waste/stats', [WasteController::class, 'getStats']);
 Route::post('waste/bulk-create', [WasteController::class, 'bulkCreate']);
+Route::apiResource('waste', WasteController::class);
 
 // Report Routes
 Route::prefix('reports')->group(function () {

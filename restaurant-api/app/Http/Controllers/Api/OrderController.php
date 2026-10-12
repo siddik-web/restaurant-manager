@@ -134,7 +134,7 @@ class OrderController extends Controller
             // Create order
             $order = Order::create([
                 'type' => $validated['type'],
-                'table_number' => $validated['table_number'],
+                'table_number' => $validated['table_number'] ?? null,
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'delivery_fee' => $deliveryFee,
@@ -158,7 +158,7 @@ class OrderController extends Controller
             }
 
             // Update table status if dine-in
-            if ($validated['type'] === 'dine-in' && $validated['table_number']) {
+            if ($validated['type'] === 'dine-in' && !empty($validated['table_number'])) {
                 \App\Models\Table::where('number', $validated['table_number'])
                     ->update(['status' => 'occupied']);
             }

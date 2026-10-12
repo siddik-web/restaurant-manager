@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('purchase_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('purchase_id')->constrained()->onDelete('cascade');
-            $table->foreignId('inventory_id')->constrained()->onDelete('cascade');
+            $table->foreignId('inventory_id')->constrained('inventory')->onDelete('cascade');
             $table->decimal('quantity', 10, 4);
             $table->decimal('unit_cost', 10, 2);
             $table->decimal('total_cost', 12, 2);
