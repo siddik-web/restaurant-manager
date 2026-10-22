@@ -40,7 +40,10 @@ class Waste extends Model
 
     public function scopeByDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('waste_date', [$startDate, $endDate]);
+        // whereDate: waste_date is stored with a time part on some databases, so a
+        // plain BETWEEN would drop records on the end date
+        return $query->whereDate('waste_date', '>=', $startDate)
+                    ->whereDate('waste_date', '<=', $endDate);
     }
 
     public function scopeByReason($query, $reason)

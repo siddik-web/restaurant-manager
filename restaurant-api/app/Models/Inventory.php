@@ -47,9 +47,20 @@ class Inventory extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
+    /**
+     * Purchase orders that include this item. Purchases hold their lines in
+     * purchase_items, so they are reached through that table; distinct keeps a
+     * purchase listed once when it has several lines for the same item.
+     */
     public function purchases()
     {
-        return $this->hasMany(Purchase::class);
+        return $this->hasManyThrough(Purchase::class, PurchaseItem::class, 'inventory_id', 'id', 'id', 'purchase_id')
+            ->distinct();
     }
 
     public function waste()

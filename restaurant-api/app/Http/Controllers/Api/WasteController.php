@@ -358,34 +358,31 @@ class WasteController extends Controller
      */
     public function getStats(Request $request)
     {
-        $query = Waste::query();
+        $base = Waste::query();
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->byDateRange($request->start_date, $request->end_date);
+            $base->byDateRange($request->start_date, $request->end_date);
         }
 
+        // Query builders are mutable, so every statistic works on its own copy;
+        // otherwise each select/group by would leak into the ones after it.
+        $grouped = fn (string $column) => (clone $base)
+            ->selectRaw("{$column}, COUNT(*) as count, SUM(total_cost) as total_value, SUM(quantity) as total_quantity")
+            ->groupBy($column)
+            ->orderByDesc('total_value');
+
         $stats = [
-            'total_waste_records' => $query->count(),
-            'total_waste_value' => $query->sum('total_cost'),
-            'total_waste_quantity' => $query->sum('quantity'),
-            'average_waste_value' => $query->avg('total_cost') ?? 0,
-            'by_reason' => $query->selectRaw('reason, COUNT(*) as count, SUM(total_cost) as total_value, SUM(quantity) as total_quantity')
-                ->groupBy('reason')
-                ->orderBy('total_value', 'desc')
-                ->get(),
-            'by_category' => $query->selectRaw('category, COUNT(*) as count, SUM(total_cost) as total_value, SUM(quantity) as total_quantity')
-                ->groupBy('category')
-                ->orderBy('total_value', 'desc')
-                ->get(),
-            'by_inventory' => $query->with('inventory')
-                ->selectRaw('inventory_id, COUNT(*) as count, SUM(total_cost) as total_value, SUM(quantity) as total_quantity')
-                ->groupBy('inventory_id')
-                ->orderBy('total_value', 'desc')
-                ->limit(10)
-                ->get(),
-            'daily_trends' => $query->selectRaw('DATE(waste_date) as date, COUNT(*) as count, SUM(total_cost) as total_value')
+            'total_waste_records' => (clone $base)->count(),
+            'total_waste_value' => (clone $base)->sum('total_cost'),
+            'total_waste_quantity' => (clone $base)->sum('quantity'),
+            'average_waste_value' => (clone $base)->avg('total_cost') ?? 0,
+            'by_reason' => $grouped('reason')->get(),
+            'by_category' => $grouped('category')->get(),
+            'by_inventory' => $grouped('inventory_id')->with('inventory')->limit(10)->get(),
+            'daily_trends' => (clone $base)
+                ->selectRaw('DATE(waste_date) as date, COUNT(*) as count, SUM(total_cost) as total_value')
                 ->groupBy('date')
-                ->orderBy('date', 'desc')
+                ->orderByDesc('date')
                 ->limit(30)
                 ->get(),
         ];
