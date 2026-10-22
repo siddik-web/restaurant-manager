@@ -93,6 +93,15 @@ cd restaurant-api
 php artisan test
 ```
 
+### Continuous integration
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
+
+- **API tests**: `composer install` then `php artisan test` on PHP 8.3.
+- **Code style**: on pull requests, Laravel Pint checks the PHP files the PR changes (`vendor/bin/pint --test`). Older files aren't Pint-clean yet, so they are not checked until someone touches them. Run `vendor/bin/pint <file>` to fix a file.
+- **Frontend syntax**: `node --check` on `app.js` and `api-client.js`.
+
+The browser end-to-end checks are not part of CI.
+
 ## 🔧 Configuration
 
 ### API Configuration
