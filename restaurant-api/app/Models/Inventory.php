@@ -96,16 +96,16 @@ class Inventory extends Model
     public function scopeExpiringSoon($query, $days = 30)
     {
         return $query->where('expiry_date', '<=', now()->addDays($days))
-                    ->where('expiry_date', '>=', now());
+            ->where('expiry_date', '>=', now());
     }
 
     public function scopeSearch($query, $search)
     {
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
-              ->orWhere('sku', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%")
-              ->orWhere('barcode', 'like', "%{$search}%");
+                ->orWhere('sku', 'like', "%{$search}%")
+                ->orWhere('category', 'like', "%{$search}%")
+                ->orWhere('barcode', 'like', "%{$search}%");
         });
     }
 
@@ -141,4 +141,4 @@ class Inventory extends Model
     {
         return $this->expiry_date && $this->expiry_date->diffInDays(now()) <= $days;
     }
-} 
+}

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Waste;
 use App\Models\Inventory;
 use App\Models\StockTransaction;
+use App\Models\Waste;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -59,7 +59,7 @@ class WasteController extends Controller
                 'by_reason' => Waste::selectRaw('reason, COUNT(*) as count, SUM(total_cost) as total_value')
                     ->groupBy('reason')
                     ->get(),
-            ]
+            ],
         ]);
     }
 
@@ -85,7 +85,7 @@ class WasteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -93,13 +93,13 @@ class WasteController extends Controller
             DB::beginTransaction();
 
             $inventory = Inventory::findOrFail($request->inventory_id);
-            
+
             // Check if there's enough stock
             if ($inventory->current_stock < $request->quantity) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Insufficient stock for waste recording',
-                    'available_stock' => $inventory->current_stock
+                    'available_stock' => $inventory->current_stock,
                 ], 422);
             }
 
@@ -152,15 +152,16 @@ class WasteController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Waste record created successfully',
-                'data' => $waste->load('inventory')
+                'data' => $waste->load('inventory'),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create waste record',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -174,7 +175,7 @@ class WasteController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $waste
+            'data' => $waste,
         ]);
     }
 
@@ -199,7 +200,7 @@ class WasteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -219,7 +220,7 @@ class WasteController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Insufficient stock to reduce waste quantity',
-                        'available_stock' => $inventory->current_stock
+                        'available_stock' => $inventory->current_stock,
                     ], 422);
                 }
 
@@ -252,7 +253,7 @@ class WasteController extends Controller
             // Recalculate total cost if quantity changed
             if ($newQuantity != $oldQuantity) {
                 $waste->update([
-                    'total_cost' => $newQuantity * $waste->unit_cost
+                    'total_cost' => $newQuantity * $waste->unit_cost,
                 ]);
             }
 
@@ -261,15 +262,16 @@ class WasteController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Waste record updated successfully',
-                'data' => $waste->load('inventory')
+                'data' => $waste->load('inventory'),
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update waste record',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -301,7 +303,7 @@ class WasteController extends Controller
                 'new_stock' => $newStock,
                 'reference_type' => 'waste_reversal',
                 'reference_id' => $waste->id,
-                'notes' => "Waste record deletion - stock restored",
+                'notes' => 'Waste record deletion - stock restored',
                 'transaction_date' => now(),
                 'unit_cost' => $waste->unit_cost,
                 'total_value' => $waste->quantity * $waste->unit_cost,
@@ -314,15 +316,16 @@ class WasteController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Waste record deleted successfully'
+                'message' => 'Waste record deleted successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete waste record',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -333,10 +336,10 @@ class WasteController extends Controller
     public function reasons()
     {
         $reasons = Waste::distinct()->pluck('reason')->filter()->sort()->values();
-        
+
         return response()->json([
             'success' => true,
-            'data' => $reasons
+            'data' => $reasons,
         ]);
     }
 
@@ -346,10 +349,10 @@ class WasteController extends Controller
     public function categories()
     {
         $categories = Waste::distinct()->pluck('category')->filter()->sort()->values();
-        
+
         return response()->json([
             'success' => true,
-            'data' => $categories
+            'data' => $categories,
         ]);
     }
 
@@ -389,7 +392,7 @@ class WasteController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 
@@ -413,7 +416,7 @@ class WasteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -426,10 +429,11 @@ class WasteController extends Controller
             foreach ($request->waste_records as $index => $wasteRecord) {
                 try {
                     $inventory = Inventory::findOrFail($wasteRecord['inventory_id']);
-                    
+
                     // Check if there's enough stock
                     if ($inventory->current_stock < $wasteRecord['quantity']) {
                         $errors[] = "Record {$index}: Insufficient stock for {$inventory->name}";
+
                         continue;
                     }
 
@@ -477,7 +481,7 @@ class WasteController extends Controller
                     $createdCount++;
 
                 } catch (\Exception $e) {
-                    $errors[] = "Record {$index}: " . $e->getMessage();
+                    $errors[] = "Record {$index}: ".$e->getMessage();
                 }
             }
 
@@ -487,16 +491,17 @@ class WasteController extends Controller
                 'success' => true,
                 'message' => "Successfully created {$createdCount} waste records",
                 'created_count' => $createdCount,
-                'errors' => $errors
+                'errors' => $errors,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create waste records',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
-} 
+}
