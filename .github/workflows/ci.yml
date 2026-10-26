@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: restaurant-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so Pint can diff against the base branch
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('restaurant-api/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Existing files are not Pint-clean yet, so only check what a PR changes
+      - name: Code style (changed files)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Pint's --diff does not resolve paths when the repo root is above this
+          # directory, so list the changed PHP files (relative to here) explicitly
+          files=$(git diff --relative --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- '*.php')
+          if [ -z "$files" ]; then
+            echo "No PHP files changed"
+          else
+            echo "$files"
+            echo "$files" | xargs vendor/bin/pint --test
+          fi
+
+      - name: Run tests
+        run: php artisan test
+
+  frontend:
+    name: Frontend syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check api-client.js
