@@ -40,7 +40,10 @@ class Waste extends Model
 
     public function scopeByDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('waste_date', [$startDate, $endDate]);
+        // whereDate: waste_date is stored with a time part on some databases, so a
+        // plain BETWEEN would drop records on the end date
+        return $query->whereDate('waste_date', '>=', $startDate)
+            ->whereDate('waste_date', '<=', $endDate);
     }
 
     public function scopeByReason($query, $reason)
@@ -57,17 +60,18 @@ class Waste extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('reason', 'like', "%{$search}%")
-              ->orWhere('notes', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%")
-              ->orWhereHas('inventory', function ($iq) use ($search) {
-                  $iq->where('name', 'like', "%{$search}%");
-              });
+                ->orWhere('notes', 'like', "%{$search}%")
+                ->orWhere('category', 'like', "%{$search}%")
+                ->orWhereHas('inventory', function ($iq) use ($search) {
+                    $iq->where('name', 'like', "%{$search}%");
+                });
         });
     }
 
     public function calculateTotal()
     {
         $this->total_cost = $this->quantity * $this->unit_cost;
+
         return $this->total_cost;
     }
-} 
+}

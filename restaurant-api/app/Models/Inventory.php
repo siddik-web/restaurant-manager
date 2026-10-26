@@ -47,9 +47,20 @@ class Inventory extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
+    /**
+     * Purchase orders that include this item. Purchases hold their lines in
+     * purchase_items, so they are reached through that table; distinct keeps a
+     * purchase listed once when it has several lines for the same item.
+     */
     public function purchases()
     {
-        return $this->hasMany(Purchase::class);
+        return $this->hasManyThrough(Purchase::class, PurchaseItem::class, 'inventory_id', 'id', 'id', 'purchase_id')
+            ->distinct();
     }
 
     public function waste()
@@ -85,16 +96,16 @@ class Inventory extends Model
     public function scopeExpiringSoon($query, $days = 30)
     {
         return $query->where('expiry_date', '<=', now()->addDays($days))
-                    ->where('expiry_date', '>=', now());
+            ->where('expiry_date', '>=', now());
     }
 
     public function scopeSearch($query, $search)
     {
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
-              ->orWhere('sku', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%")
-              ->orWhere('barcode', 'like', "%{$search}%");
+                ->orWhere('sku', 'like', "%{$search}%")
+                ->orWhere('category', 'like', "%{$search}%")
+                ->orWhere('barcode', 'like', "%{$search}%");
         });
     }
 
@@ -130,4 +141,4 @@ class Inventory extends Model
     {
         return $this->expiry_date && $this->expiry_date->diffInDays(now()) <= $days;
     }
-} 
+}
